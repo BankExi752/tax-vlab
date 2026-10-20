@@ -20,7 +20,7 @@ import re
 import pandas as pd
 import streamlit as st
 
-APP_VERSION = "V1.7"
+APP_VERSION = "V1.8"
 
 # ============================================================================
 # 一、常量与元数据（与计划书 V5.2 严格对齐）
@@ -634,8 +634,8 @@ def dependency_warning(text):
 
 
 def render_step_nav(n):
-    """步骤页底部跳转：上一步 / 下一步（S19 的下一步指向结算页；S2 未达标锁定后续）。"""
-    nxt = 99 if n >= 19 else n + 1
+    """步骤页底部跳转：上一步 / 下一步（S15 的下一步指向总结复盘窗格；S2 未达标锁定后续）。"""
+    nxt = 88 if n >= 15 else n + 1  # S15 之后进入总结复盘窗格（S16—S19）
     # 当前页为 S3+，或下一步将进入 S3—S19 时，快测未达标一律锁定
     locked = not quiz_passed() and (n >= 3 or 3 <= nxt <= 19)
     c1, c2, c3 = st.columns([1, 2, 1])
@@ -645,7 +645,7 @@ def render_step_nav(n):
                 setv("current_step", n - 1)
                 st.rerun()
     with c3:
-        label = "下一步 → 结算页" if n >= 19 else f"下一步 → S{n+1}"
+        label = "下一步 → 总结复盘" if n >= 15 else f"下一步 → S{n+1}"
         if locked:
             st.button("🔒 需先通过 S2 快测（≥3 分）", key=f"next_{n}", width="stretch",
                       type="primary", disabled=True)
@@ -720,9 +720,9 @@ def render_s3():
         pid = inv[0]
         pval = inv[1] + inv[2] + inv[3]
         with cb_cols[i % 3]:
-            if st.checkbox(f"🧾 {pid} ｜ 来源 {inv[1]} ＋ 签章 {inv[2]} ＋ 可追溯 {inv[3]} ＝ P {pval}",
-                           key=f"s3_cb_{pid}"):
+            if st.checkbox(f"🧾 {pid} ｜ P = {pval}", key=f"s3_cb_{pid}"):
                 marked.append(pid)
+            st.caption(f"来源 {inv[1]} ＋ 签章 {inv[2]} ＋ 可追溯 {inv[3]}")
     if st.button("提交查验结果", key="s3_submit", type="primary"):
         true_abn = set(abnormal_invoices())
         marked_set = set(marked)
@@ -1064,10 +1064,19 @@ def render_s15():
         st.rerun()
 
 
-def render_s16():
-    step_header(16)
-    st.markdown("**目标要求**：系统生成报告草稿（操作轨迹 / 得分 / 分支图 / 税负雷达图），学生预览核对，"
-                "分数可随 S17 加分更新。草稿生成成功给 3 分。")
+def render_review():
+    """总结复盘独立窗格（S16—S19 报告与反馈），不进入测评步骤流程。"""
+    s = st.session_state
+    st.markdown("### 📝 总结复盘（S16—S19 报告与反馈）")
+    st.markdown("从实验报告里复盘得失：**生成草稿 → AI 提分 → 最终报告 → 反馈问卷**，"
+                "得分计入成绩（报告与理论 30% 权重），全程可撤销、可追溯。")
+    got = sum(1 for n in (16, 17, 18, 19) if s.get("scores", {}).get(n) is not None)
+    st.progress(got / 4, text=f"总结复盘进度 {got}/4")
+    st.divider()
+
+    # ---- S16 报告草稿 ----
+    st.markdown("**📄 S16 · 实验报告草稿生成**（满分 3 分｜成绩类型：报告）")
+    st.caption("🐣 小白提示：" + NOVICE_HINTS[16])
     if st.button("生成报告草稿", key="s16_submit", type="primary"):
         setv("report_html", build_report_html())
         record(16, 3)
@@ -1075,13 +1084,11 @@ def render_s16():
         st.rerun()
     if get("report_html"):
         st.markdown(get("report_html"), unsafe_allow_html=True)
+    st.divider()
 
-
-def render_s17():
-    step_header(17)
-    st.markdown("**目标要求**：AI 拆解失分因子推送 3 分钟微课 + 2 道同类题，完成练习可加回部分分数"
-                "（最高 +10% 权重）。练习全对 6 分，完成观看 2 分，教师认可 2 分。")
-    s = st.session_state
+    # ---- S17 AI 提分辅导 ----
+    st.markdown("**🎯 S17 · AI 提分辅导与个性化练习**（满分 10 分｜成绩类型：教师评价）")
+    st.caption("🐣 小白提示：" + NOVICE_HINTS[17])
     lost = [step_title(n)[1] for n in s.get("scores", {}) if s["scores"][n] < step_title(n)[3] * 0.6]
     if lost:
         st.info("**AI 失分因子拆解**：" + "；".join(f"S{n} {name}" for n, name in
@@ -1102,12 +1109,11 @@ def render_s17():
         record(17, min(10, score))
         st.success(f"S17 得分 {min(10, score):g} / 10。")
         st.rerun()
+    st.divider()
 
-
-def render_s18():
-    step_header(18)
-    st.markdown("**目标要求**：系统按 S17 最终得分生成最终版 PDF 报告，学生确认提交；教师端回填评语与微调分。"
-                "提交成功 2 分，教师评价 1 分。")
+    # ---- S18 最终版报告 ----
+    st.markdown("**📮 S18 · 最终版报告生成与提交**（满分 3 分｜成绩类型：报告 + 教师）")
+    st.caption("🐣 小白提示：" + NOVICE_HINTS[18])
     if st.button("生成最终版报告并提交", key="s18_submit", type="primary"):
         setv("report_html", build_report_html(final=True))
         setv("s18_teacher_done", True)
@@ -1122,12 +1128,11 @@ def render_s18():
         record(18, 3)  # 2 + 1（教师评价）
         setv("s18_teacher_done", True)
         st.success("教师评语已回填，S18 总分更新为 3/3。")
+    st.divider()
 
-
-def render_s19():
-    step_header(19)
-    st.markdown("**目标要求**：填写结构化问卷：难度感知、最有收获步骤、最困惑税种、希望增加案例类型、"
-                "开放性建议，生成班级反馈热力图。问卷提交完整 3 分，附具体改进建议再加 2 分。")
+    # ---- S19 反馈问卷 ----
+    st.markdown("**🗒️ S19 · 学习反馈收集与二次优化**（满分 5 分｜成绩类型：教师评价）")
+    st.caption("🐣 小白提示：" + NOVICE_HINTS[19])
     diff = st.select_slider("难度感知", options=["很容易", "较容易", "适中", "较难", "很难"], key="s19_diff")
     best = st.radio("最有收获的步骤（点选，无需下拉）",
                     [f"S{n} {name}" for n, name, _, _, _ in STEPS], key="s19_best", index=4)
@@ -1146,6 +1151,18 @@ def render_s19():
     if get("s19_filled"):
         st.markdown("**班级反馈热力图（模拟聚合）**")
         st.markdown(heatmap_svg({"很容易": 8, "较容易": 20, "适中": 42, "较难": 22, "很难": 8}), unsafe_allow_html=True)
+    st.divider()
+
+    # ---- 窗格底部导航 ----
+    c1, c2, c3 = st.columns([1, 2, 1])
+    with c1:
+        if st.button("← 返回决策台", key="review_back", width="stretch"):
+            setv("current_step", 15)
+            st.rerun()
+    with c3:
+        if st.button("🏁 前往结算页", key="review_summary", width="stretch", type="primary"):
+            setv("current_step", 99)
+            st.rerun()
 
 
 # ============================================================================
@@ -1257,6 +1274,30 @@ def render_summary():
 # 七、主流程
 # ============================================================================
 
+def render_top_nav():
+    """顶部横向导航（参考版面）：实验导览 / 决策台 / 总结复盘，选中项高亮。"""
+    cur = st.session_state.get("current_step", 1)
+    active = "🏠 实验导览" if cur == 1 else ("📝 总结复盘" if cur == 88 else "🧭 决策台")
+    st.markdown(
+        "<style>[data-testid='stHorizontalBlock'] > div:nth-child(1) .stButton,"
+        "[data-testid='stHorizontalBlock'] > div:nth-child(1) button { width: 100% }</style>",
+        unsafe_allow_html=True)
+    c1, c2, c3 = st.columns(3)
+    items = [("🏠 实验导览", 1), ("🧭 决策台", 2), ("📝 总结复盘", 88)]
+    for col, (label, target) in zip((c1, c2, c3), items):
+        with col:
+            if st.button(label + (" ✓" if label == active else ""),
+                         key=f"topnav_{target}", width="stretch",
+                         type="primary" if label == active else "secondary"):
+                if target == 2:
+                    if not (2 <= cur <= 15 or cur == 99):
+                        setv("current_step", 2)
+                else:
+                    setv("current_step", target)
+                st.rerun()
+    st.caption("实验导览（首页与开局设置）→ 决策台（S1—S15 操作测评）→ 总结复盘（S16—S19 报告与反馈）")
+
+
 def render_sidebar():
     """侧边栏：自上而下 11 段，每段用 st.divider() 分隔。"""
     s = st.session_state
@@ -1305,11 +1346,19 @@ def render_sidebar():
             for formula, explain, mnemonic in FORMULA_HINTS:
                 st.markdown(f"**{formula}**")
                 st.caption(f"{explain}｜口诀：{mnemonic}")
-        # 8. 流程跳转格（每篇章一行按钮矩阵；完成 ✅ + primary 高亮）
+        # 8. 流程跳转格（每篇章一行按钮矩阵；总结复盘单开窗格；完成 ✅ + primary 高亮）
         st.divider()
         st.caption("流程跳转格（✅ 已完成）")
         for pname, steps in PHASES:
             st.markdown(f"**{pname}**")
+            if pname == "总结复盘":
+                got_rev = sum(1 for n in (16, 17, 18, 19) if s.get("scores", {}).get(n) is not None)
+                label = f"📝 总结复盘（S16—S19）" + (f" ✅{got_rev}/4" if got_rev else "")
+                if st.button(label, key="nav_review", width="stretch",
+                              type="primary" if got_rev else "secondary"):
+                    setv("current_step", 88)
+                    st.rerun()
+                continue
             cols = st.columns(len(steps))
             for col, n in zip(cols, steps):
                 got = s.get("scores", {}).get(n)
@@ -1440,6 +1489,7 @@ def main():
     init_state()
     st.set_page_config(page_title="金税四期·业票税信虚仿实验", page_icon="🧾", layout="wide")
     st.markdown(UI_CSS, unsafe_allow_html=True)
+    render_top_nav()
     render_sidebar()
     cur = st.session_state.get("current_step", 1)
     if not st.session_state.get("started") and cur != 1:
@@ -1448,18 +1498,20 @@ def main():
     if cur == 99:
         render_summary()
         return
+    if cur == 88:
+        render_review()
+        return
     if cur == 1:
         render_home()
         return
-    # 独立步骤页（侧边栏导航进入）
+    # 独立步骤页（决策台 S2—S15，侧边栏导航进入）
     st.markdown(f"<div style='font-size:12px;color:#8a97ab;margin-bottom:4px'>金税四期下“业—票—税—信”虚仿实验 · "
-                f"步骤 {cur}/19</div>", unsafe_allow_html=True)
+                f"步骤 {cur}/15 · 测评环节</div>", unsafe_allow_html=True)
     if cur >= 3 and not quiz_passed():
-        st.warning("S2 税制理论快测尚未达标（≥3 分）——S3—S19 已锁定，请先返回 S2 完成快测并重测达标。")
+        st.warning("S2 税制理论快测尚未达标（≥3 分）——S3—S15 已锁定，请先返回 S2 完成快测并重测达标。")
     renderers = {2: render_s2, 3: render_s3, 4: render_s4, 5: render_s5, 6: render_s6, 7: render_s7,
                  8: render_s8, 9: render_s9, 10: render_s10, 11: render_s11, 12: render_s12,
-                 13: render_s13, 14: render_s14, 15: render_s15, 16: render_s16, 17: render_s17,
-                 18: render_s18, 19: render_s19}
+                 13: render_s13, 14: render_s14, 15: render_s15}
     renderers.get(cur, render_home)()
     render_step_nav(cur)
     st.markdown(f"<div style='margin-top:14px;color:#8a97ab;font-size:12px'>—— {APP_VERSION} ｜ "

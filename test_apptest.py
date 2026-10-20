@@ -69,7 +69,9 @@ check("侧边栏含审计留痕", "可回滚" in sb_text(at))
 
 # 3. 侧边栏导航按钮
 navs = [b for b in at.sidebar.button if b.key and str(b.key).startswith("nav_")]
-check("侧边栏 19 步导航按钮", len(navs) >= 19, f"{len(navs)} 个")
+check("侧边栏 15 步导航按钮", len(navs) >= 15, f"{len(navs)} 个")
+review_btn = [b for b in at.sidebar.button if b.key == "nav_review"]
+check("总结复盘窗格按钮存在", len(review_btn) == 1)
 summary_btn = [b for b in at.sidebar.button if b.key == "nav_summary"]
 check("结算页按钮存在", len(summary_btn) == 1)
 
@@ -144,6 +146,24 @@ nav15.click(); at.run()
 check("S15 页渲染", "定性裁量与绩效结算" in all_text(at))
 check("S15 自动生成定性", at.session_state.get("outcome") in ("无问题", "一般违规", "偷税"),
       str(at.session_state.get("outcome")))
+
+# 6.5 总结复盘窗格（S16—S19 独立窗格，不再作为测评步骤）
+nb15 = [b for b in at.button if b.key == "next_15"]
+check("S15 底部下一步指向总结复盘", len(nb15) == 1 and "总结复盘" in str(nb15[0].label),
+      str([b.label for b in at.button if b.key and str(b.key).startswith("next_")]))
+nb15[0].click(); at.run()
+check("下一步进入总结复盘窗格", at.session_state["current_step"] == 88,
+      str(at.session_state.get("current_step")))
+check("窗格含 S16 草稿按钮", any("生成报告草稿" in str(b.label) for b in at.button))
+check("窗格含 S17 同类题", any(b.key == "s17_q1" for b in at.radio))
+check("窗格含 S19 问卷", any(b.key == "s19_advice" for b in at.text_area))
+check("窗格内不显示步骤序号", "步骤 16/15" not in all_text(at))
+b16 = [b for b in at.button if b.key == "s16_submit"][0]
+b16.click(); at.run()
+check("窗格内 S16 计分", at.session_state["scores"].get(16) == 3,
+      str(at.session_state["scores"].get(16)))
+check("窗格顶部导航含总结复盘高亮", any("topnav_88" == b.key and "总结复盘 ✓" in str(b.label)
+      for b in at.button), str([(b.key, b.label) for b in at.button if b.key and str(b.key).startswith("topnav_")]))
 
 # 7. 结算页
 sb = [b for b in at.sidebar.button if b.key == "nav_summary"][0]
