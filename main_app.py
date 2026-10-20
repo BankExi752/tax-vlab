@@ -20,7 +20,7 @@ import re
 import pandas as pd
 import streamlit as st
 
-APP_VERSION = "V1.3"
+APP_VERSION = "V1.4"
 
 # ============================================================================
 # 一、常量与元数据（与计划书 V5.2 严格对齐）
@@ -425,6 +425,7 @@ DEFAULT_STATE = {
     "s11_done": False, "s12_done": False, "s13_done": False, "s14_done": False,
     "s15_done": False, "s16_done": False, "s17_done": False, "s18_done": False, "s19_done": False,
     "s11_text": "", "s12_text": "", "s14_citation": "", "s17_correct": False,
+    "s12_negative_hit": False,
     "outcome": "", "outcome_note": "", "s19_filled": False,
     "report_html": "", "final_score": None, "role_swap_used": False,
     "undo_stack": [], "action_plan": {},
@@ -447,6 +448,11 @@ def setv(key, value):
 
 def steps_done_count():
     return sum(1 for s in STEPS if s[0] in st.session_state.get("scores", {}))
+
+
+def quiz_passed():
+    """S2 税制理论快测达标（≥3 分）后才解锁 S3—S19（计划书“低于 3 分阻断并重测”）。"""
+    return st.session_state.get("quiz_done", False)
 
 
 def total_score():
@@ -526,6 +532,10 @@ def undo_last():
         # 撤销快测：重置测验状态以便重做
         s["quiz_done"] = False
         s["quiz_score"] = 0
+    if n == 12:
+        s["s12_negative_hit"] = False
+    if n == 18:
+        s["s18_teacher_done"] = False
     if n in (16, 18):
         s["report_html"] = ""
     s["final_score"] = None
@@ -551,19 +561,25 @@ def dependency_warning(text):
 
 
 def render_step_nav(n):
-    """步骤页底部跳转：上一步 / 下一步（S19 的下一步指向结算页）。"""
+    """步骤页底部跳转：上一步 / 下一步（S19 的下一步指向结算页；S2 未达标锁定后续）。"""
+    nxt = 99 if n >= 19 else n + 1
+    # 当前页为 S3+，或下一步将进入 S3—S19 时，快测未达标一律锁定
+    locked = not quiz_passed() and (n >= 3 or 3 <= nxt <= 19)
     c1, c2, c3 = st.columns([1, 2, 1])
     with c1:
         if n > 1:
-            if st.button("← 上一步", key=f"prev_{n}", use_container_width=True):
+            if st.button("← 上一步", key=f"prev_{n}", width="stretch"):
                 setv("current_step", n - 1)
                 st.rerun()
     with c3:
-        nxt = 99 if n >= 19 else n + 1
         label = "下一步 → 结算页" if n >= 19 else f"下一步 → S{n+1}"
-        if st.button(label, key=f"next_{n}", use_container_width=True, type="primary"):
-            setv("current_step", nxt)
-            st.rerun()
+        if locked:
+            st.button("🔒 需先通过 S2 快测（≥3 分）", key=f"next_{n}", width="stretch",
+                      type="primary", disabled=True)
+        else:
+            if st.button(label, key=f"next_{n}", width="stretch", type="primary"):
+                setv("current_step", nxt)
+                st.rerun()
 
 
 # ============================================================================
@@ -627,19 +643,24 @@ def render_s3():
         [{"票号": inv[0], "来源分": inv[1], "签章分": inv[2], "可追溯分": inv[3],
           "P 值（系统计算）": inv[1] + inv[2] + inv[3]} for inv in INVOICES]
     )
-    st.dataframe(df, use_container_width=True, hide_index=True)
+    st.dataframe(df, width="stretch", hide_index=True)
     marked = st.multiselect("请标注你认为 P＜50 的异常票（系统不会替你标红）",
                             [inv[0] for inv in INVOICES], key="s3_marked")
     if st.button("提交查验结果", key="s3_submit", type="primary"):
         true_abn = set(abnormal_invoices())
         marked_set = set(marked)
-        score = 12 * 0.5 + 2.0 * len(marked_set & true_abn)
+        hits = len(marked_set & true_abn)
+        false_pos = len(marked_set - true_abn)
+        # 命中 1 张异常票 +5，误标 1 张正常票 −2（杜绝无脑全选拿满分）
+        score = max(0, 5 * hits - 2 * false_pos)
         miss = true_abn - marked_set
         risk_add = 0 if not miss else 20
         record(3, score, risk_add)
         if miss:
             st.warning(f"漏标异常票：{','.join(sorted(miss))}，稽查风险值 +20。")
-        st.success(f"S3 得分 {score:g} / 10。")
+        if false_pos:
+            st.warning(f"误标正常票 {false_pos} 张，按 −2 分/张扣除（当前得分 {score:g}/10）。")
+        st.success(f"S3 得分 {score:g} / 10（命中 {hits} 张异常票，误标 {false_pos} 张）。")
         st.rerun()
 
 
@@ -649,12 +670,15 @@ def render_s4():
                 "四流是否一致，断裂则保存按钮变灰。借贷平衡给 5 分，四流一致再给 3 分。")
     st.markdown("**采购凭证（预填）**：借：库存商品 280 万 ｜ 借：应交税费—应交增值税（进项税额）**（待填）**"
                 " ｜ 贷：银行存款 **（待填）**")
-    input_tax = st.number_input("进项税额（万元）", value=36.4, step=0.1, key="s4_input_tax")
-    credit = st.number_input("贷方银行存款（万元）", value=316.4, step=0.1, key="s4_credit")
-    balanced = abs(280 + input_tax - credit) < 0.05
+    input_tax = st.number_input("进项税额（万元）", value=None, placeholder="如 36.4", step=0.1, key="s4_input_tax")
+    credit = st.number_input("贷方银行存款（万元）", value=None, placeholder="如 316.4", step=0.1, key="s4_credit")
     st.markdown("**四流状态**：合同 √ 已签订 ｜ 发票 √ 已取得 ｜ 资金 √ 已支付 ｜ 物流 **✗ 运输单据缺失（疑似断裂）**")
     flow_choice = st.radio("四流是否一致？（系统提示存在断裂点）", ["一致", "存在断裂"], key="s4_flow_choice")
     if st.button("保存凭证", key="s4_submit", type="primary"):
+        if input_tax is None or credit is None:
+            st.warning("请先补全进项税额与贷方银行存款金额，再保存凭证。")
+            return
+        balanced = abs(280 + input_tax - credit) < 0.05
         score = 5 if balanced else 0
         risk_add = 0
         if flow_choice == "存在断裂":
@@ -684,9 +708,12 @@ def render_s5():
     col1.metric("应纳增值税", f"{tax} 万元")
     col2.metric("税负率", f"{burden} %")
     col3.metric("税后净利润（算账闭环）", f"{profit} 万元")
-    confirm = st.number_input("确认应纳税额（万元）", value=tax, key="s5_amount")
+    confirm = st.number_input("确认应纳税额（万元，请参照上方系统数据输入）", value=None, placeholder=f"如 {tax}", key="s5_amount")
     in_range = 3 <= burden <= 8
     if st.button("提交复核", key="s5_submit", type="primary"):
+        if confirm is None:
+            st.warning("请先输入确认的应纳税额，再提交复核。")
+            return
         correct = abs(confirm - tax) < 0.05
         score = 10 if correct else 0
         if correct and in_range:
@@ -711,8 +738,11 @@ def render_s6():
     col1, col2 = st.columns(2)
     col1.metric("应纳消费税", f"{tax} 元")
     col2.metric("成套销售应纳（对比）", f"{tax_set} 元", delta=f"{tax - tax_set:+.0f} 元")
-    confirm = st.number_input("确认申报税额（元）", value=tax, key="s6_amount")
+    confirm = st.number_input("确认申报税额（元，请参照上方系统数据输入）", value=None, placeholder=f"如 {tax}", key="s6_amount")
     if st.button("提交申报", key="s6_submit", type="primary"):
+        if confirm is None:
+            st.warning("请先输入确认的申报税额，再提交申报。")
+            return
         score = 8 if abs(confirm - tax) < 0.5 else 0
         if mode_val == "split":
             score += 5
@@ -726,11 +756,14 @@ def render_s7():
     st.markdown("**目标要求**：手动计算进销匹配率 = 进项税额 / 销项税额，判断仪表盘颜色（阈值 70%），"
                 "每次不合规操作累积稽查风险值。公式对 4 分，颜色判断一致 4 分，风险条未触顶再加 2 分。")
     st.markdown("当期数据：销项税额 **54.6 万元**（销售额 420 万 × 13%），进项税额 **36.4 万元**。")
-    ratio_input = st.number_input("进销匹配率（%，请自行计算）", value=66.67, step=0.01, key="s7_ratio")
+    ratio_input = st.number_input("进销匹配率（%，请自行计算）", value=None, placeholder="如 66.67", step=0.01, key="s7_ratio")
     color_input = st.radio("仪表盘应显示的颜色（阈值 70%，低于触发预警）",
                            ["绿色（正常）", "黄色（关注）", "红色（预警）"], key="s7_color")
-    true_color = "红色（预警）" if ratio_input < 70 else "绿色（正常）"
     if st.button("提交判断", key="s7_submit", type="primary"):
+        if ratio_input is None:
+            st.warning("请先计算并输入进销匹配率，再提交判断。")
+            return
+        true_color = "红色（预警）" if ratio_input < 70 else "绿色（正常）"
         exact = abs(calc_match_rate(36.4, 54.6) - ratio_input) < 0.01
         score = 4 if exact else 0
         if color_input == true_color:
@@ -762,10 +795,13 @@ def render_s8():
     penalty = get("s8_penalty", 0.0)
     st.info(f"本次抽取种子：**{kind}**。异常票 FP2025011 对应进项税额 8.5 万元，"
             f"转出系数 = 1 + {penalty:.2%}（红冲时点与异常类型耦合）。")
-    amount = st.number_input("进项税额转出金额（万元）", value=8.5, step=0.001, key="s8_amount")
+    amount = st.number_input("进项税额转出金额（万元，按种子系数计算）", value=None, placeholder="计算后填写", step=0.001, key="s8_amount")
     debit = st.radio("会计分录方向", ["借：主营业务成本，贷：应交税费—进项税额转出", "借：应交税费，贷：银行存款"], key="s8_debit")
     correct_amount = 8.5 * (1 + penalty)
     if st.button("提交分录", key="s8_submit", type="primary"):
+        if amount is None:
+            st.warning("请先计算并输入进项税额转出金额，再提交分录。")
+            return
         score = 6 if abs(amount - correct_amount) < 0.01 else 0
         score += 4 if debit.startswith("借：主营业务成本") else 0
         score += 2 if abs(amount - correct_amount) < 0.01 else 0
@@ -780,9 +816,12 @@ def render_s9():
                 "需纳税调增 8 万，比较一次性捐赠与分两年捐赠并理解递延纳税逻辑。调增额落入允许区间 10 分，"
                 "捐赠分年选择正确再加 5 分。本步为税收学 / 会计学分支选做。")
     c = CASES["商贸公司"]
-    adj = st.number_input("A105000 纳税调增金额（万元）", value=8.0, step=0.5, key="s9_adj")
+    adj = st.number_input("A105000 纳税调增金额（万元）", value=None, placeholder="如 8.0", step=0.5, key="s9_adj")
     plan = st.radio("捐赠时间安排", ["一次性捐赠（当年全部捐出）", "分两年捐赠（第 1 年 12 万、第 2 年 8 万）"], key="s9_plan")
     if st.button("提交汇算", key="s9_submit", type="primary"):
+        if adj is None:
+            st.warning("请先计算并输入纳税调增金额，再提交汇算。")
+            return
         score = 10 if abs(adj - 8.0) < 0.1 else 0
         correct_plan = plan.startswith("分两年")
         if correct_plan:
@@ -802,9 +841,12 @@ def render_s10():
     answers = {}
     for p in S10_PERSONS:
         answers[p["id"]] = st.number_input(f"{p['id']}（{p['type']}，预扣税额 万元）",
-                                           value=round(p["tax"], 3), step=0.001, key=f"s10_{p['id']}")
+                                           value=None, placeholder="计算后填写", step=0.001, key=f"s10_{p['id']}")
     split = st.radio("案例 D 最优拆分方案", ["全部作为工资（3480 元）", "工资 9.6 万 + 年终奖 2.4 万（1800 元）"], key="s10_split")
     if st.button("提交申报", key="s10_submit", type="primary"):
+        if any(v is None for v in answers.values()):
+            st.warning("请先填齐 5 名人员的预扣税额，再提交申报。")
+            return
         score = sum(2 for p in S10_PERSONS if abs(answers[p["id"]] - p["tax"]) < 0.001)
         if split.startswith("工资 9.6"):
             score += 4
@@ -843,7 +885,11 @@ def render_s12():
                 "“虚假拆分”等负面词直接判 0 分并弹预警；合规定性由规则引擎给出。本步给分以关键词与负面词命中为准。")
     text = st.text_area("粘贴/输入你的操作描述或筹划方案以供合规判定", height=120, key="s12_text")
     if st.button("提交判定", key="s12_submit", type="primary"):
+        if not (text or "").strip():
+            st.warning("请先填写操作描述或方案文本——空提交无法判定，不计分、不记完成。")
+            return
         score, risk_add, msg = judge_text(text)
+        setv("s12_negative_hit", any(w in text for w in NEGATIVE_WORDS))
         record(12, score, risk_add)
         if score == 0:
             st.error(msg + " → 合规判定：偷税倾向，预警！")
@@ -859,8 +905,11 @@ def render_s13():
     st.info("当前对抗角色：【税务稽查】——同一证据包，从稽查视角审视。")
     ev = st.multiselect("已固定的证据类（可多选）", ["合同", "资金", "物流", "发票"],
                         default=["合同", "发票", "资金"], key="s13_ev")
-    closure_input = st.number_input("证据链闭合度（%）", value=75.0, step=1.0, key="s13_closure")
+    closure_input = st.number_input("证据链闭合度（%，请自行计算）", value=None, placeholder="如 75.0", step=1.0, key="s13_closure")
     if st.button("提交取证", key="s13_submit", type="primary"):
+        if closure_input is None:
+            st.warning("请先计算并输入证据链闭合度，再提交取证。")
+            return
         true_closure = calc_evidence_closure(len(ev))
         score = 6 if abs(true_closure - closure_input) < 0.01 else 0
         if len(ev) == 4:
@@ -899,7 +948,8 @@ def render_s15():
     s = st.session_state
     if not s.get("s15_done"):
         seed = f"{s.get('case','')}|{s.get('s8_seed','')}|{s.get('quiz_attempt',0)}|{s.get('risk_points',0)}"
-        negative_hit = s.get("scores", {}).get(12) == 0
+        # 仅当 S12 实际命中负面词才视为“负面词证据”，空提交/乱写不判偷税
+        negative_hit = s.get("s12_negative_hit", False)
         abnormal_handled = s.get("scores", {}).get(8, 0) >= 6
         closure = s.get("scores", {}).get(13, 0) >= 6
         ev_closure = 100.0 if closure else 50.0
@@ -974,8 +1024,10 @@ def render_s18():
                 "提交成功 2 分，教师评价 1 分。")
     if st.button("生成最终版报告并提交", key="s18_submit", type="primary"):
         setv("report_html", build_report_html(final=True))
-        record(18, 2)
-        st.success("最终版报告已生成并提交，得分 +2。")
+        setv("s18_teacher_done", True)
+        # 提交 2 分 + 教师认可 1 分（演示环境默认认可，保证 173 满分可达）
+        record(18, 3)
+        st.success("最终版报告已生成并提交：提交 2 分 + 教师认可 1 分（演示默认认可），得分 3/3。")
         st.rerun()
     if get("report_html"):
         st.markdown(get("report_html"), unsafe_allow_html=True)
@@ -1012,6 +1064,17 @@ def render_s19():
 # 六、报告与结算
 # ============================================================================
 
+# 报告与理论测评类步骤（计入 30% 权重，满分合计 36：S11 12 + S12 8 + S14 10 + S16 3 + S18 3）
+REPORT_STEPS = [11, 12, 14, 16, 18]
+
+
+def calc_report_score(s):
+    """报告与理论测评（100 分制）= 报告类步骤实际得分 / 报告类满分合计 × 100。"""
+    got = sum(s.get("scores", {}).get(n, 0) for n in REPORT_STEPS)
+    full = sum(step_title(n)[3] for n in REPORT_STEPS)
+    return round(got / full * 100) if full else 0
+
+
 def build_report_html(final=False):
     """生成实验报告（操作轨迹 / 得分明细 / 税负雷达图 / 成绩）。"""
     s = st.session_state
@@ -1023,7 +1086,8 @@ def build_report_html(final=False):
     radar = radar_svg(radar_vals, ["增值税", "消费税", "企业所得税", "个人所得税"])
     done = steps_done_count()
     step_sc = total_score()
-    final = calc_final_score(step_sc, 85, 90) if final else None
+    report_sc = calc_report_score(s)
+    final = calc_final_score(step_sc, report_sc, 90) if final else None
     setv("final_score", final)
     html = f"""
     <div style="font-family:'Microsoft YaHei',sans-serif;border:1px solid #dbe4f0;border-radius:10px;
@@ -1044,8 +1108,8 @@ def build_report_html(final=False):
       </table>
       <div style="margin-top:10px">{radar}</div>
       <div style="font-size:13px;color:#1a3b66;margin-top:8px">实验成绩（百分制）=
-        操作 {step_sc}/173×100×60% + 报告 85×30% + 综合 90×10% =
-        {calc_final_score(step_sc, 85, 90)} 分</div>
+        操作 {step_sc}/173×100×60% + 报告与理论 {report_sc}×30% + 综合 90×10% =
+        {calc_final_score(step_sc, report_sc, 90)} 分</div>
     </div>"""
     return html
 
@@ -1080,9 +1144,9 @@ def render_summary():
     """结算页：最终成绩（60/30/10）+ 雷达图 + 定性。"""
     s = st.session_state
     step_sc = total_score()
-    report_guess = 85  # 报告与理论测评（演示环境默认 85，可在 S18 微调）
-    comp = 90          # 综合考核（演示环境默认 90）
-    final = calc_final_score(step_sc, report_guess, comp)
+    report_sc = calc_report_score(s)  # 报告与理论测评（100 分制）＝ 报告类步骤真实得分率
+    comp = 90          # 综合考核（演示环境默认 90，无独立交互步骤）
+    final = calc_final_score(step_sc, report_sc, comp)
     setv("final_score", final)
     st.markdown(f"<h2 style='color:#1a3b66'>实验结算</h2>", unsafe_allow_html=True)
     c1, c2, c3, c4 = st.columns(4)
@@ -1161,12 +1225,14 @@ def render_sidebar():
             cols = st.columns(len(steps))
             for col, n in zip(cols, steps):
                 got = s.get("scores", {}).get(n)
-                label = f"✅S{n}" if got is not None else f"S{n}"
-                if col.button(label, key=f"nav_{n}", use_container_width=True,
-                              type="primary" if got is not None else "secondary"):
+                locked = n >= 3 and not quiz_passed()
+                label = f"🔒S{n}" if locked else (f"✅S{n}" if got is not None else f"S{n}")
+                if col.button(label, key=f"nav_{n}", width="stretch",
+                              type="primary" if got is not None else "secondary",
+                              disabled=locked):
                     setv("current_step", n)
                     st.rerun()
-        if st.button("🏁 结算页", key="nav_summary", use_container_width=True, type="primary"):
+        if st.button("🏁 结算页", key="nav_summary", width="stretch", type="primary"):
             setv("current_step", 99)
             st.rerun()
         # 9. 下一轮待办（读 action_plan[step]，空则占位）
@@ -1178,12 +1244,12 @@ def render_sidebar():
         stack = s.get("undo_stack", [])
         if stack:
             if st.button(f"↩ 撤销上一步（S{stack[-1]['step']}）", key="undo_last",
-                         use_container_width=True):
+                         width="stretch"):
                 undo_last()
                 st.rerun()
         else:
             st.button("↩ 无可撤销记录", key="undo_last_empty", disabled=True,
-                      use_container_width=True)
+                      width="stretch")
         # 11. 审计留痕
         st.divider()
         st.caption(f"🛡 可回滚、可追溯｜已审计 {len(s.get('scores', {}))} 条操作，"
@@ -1221,11 +1287,11 @@ def render_home():
         st.info("已认领案例并接收 KPI（S1 得分已记录）——可返回首页或进入下一步。")
         bc1, bc2, bc3 = st.columns([1, 2, 1])
         with bc1:
-            if st.button("回到 S1 案例认领", key="back_s1", use_container_width=True):
+            if st.button("回到 S1 案例认领", key="back_s1", width="stretch"):
                 setv("current_step", 1)
                 st.rerun()
         with bc3:
-            if st.button("下一步 → S2", key="next_1", use_container_width=True, type="primary"):
+            if st.button("下一步 → S2", key="next_1", width="stretch", type="primary"):
                 setv("current_step", 2)
                 st.rerun()
 
@@ -1247,6 +1313,8 @@ def main():
     # 独立步骤页（侧边栏导航进入）
     st.markdown(f"<div style='font-size:12px;color:#8a97ab;margin-bottom:4px'>金税四期下“业—票—税—信”虚仿实验 · "
                 f"步骤 {cur}/19</div>", unsafe_allow_html=True)
+    if cur >= 3 and not quiz_passed():
+        st.warning("S2 税制理论快测尚未达标（≥3 分）——S3—S19 已锁定，请先返回 S2 完成快测并重测达标。")
     renderers = {2: render_s2, 3: render_s3, 4: render_s4, 5: render_s5, 6: render_s6, 7: render_s7,
                  8: render_s8, 9: render_s9, 10: render_s10, 11: render_s11, 12: render_s12,
                  13: render_s13, 14: render_s14, 15: render_s15, 16: render_s16, 17: render_s17,
