@@ -20,7 +20,7 @@ import re
 import pandas as pd
 import streamlit as st
 
-APP_VERSION = "V1.5"
+APP_VERSION = "V1.6"
 
 # ============================================================================
 # 一、常量与元数据（与计划书 V5.2 严格对齐）
@@ -98,6 +98,46 @@ SIDEBAR_CSS = """
   padding-top: 0.15rem !important; padding-bottom: 0.15rem !important; }
 [data-testid="stSidebar"] [data-testid="stMetricValue"] { font-size: 15px !important; }
 [data-testid="stSidebar"] [data-testid="stMetric"] { padding-top: 0.3rem; padding-bottom: 0.3rem; }
+</style>
+"""
+
+# 全局 UI 生动化：主题色（税务蓝）+ 按钮动画 + 多选卡片化 + 悬停反馈
+UI_CSS = """
+<style>
+/* 按钮：浮起 + 阴影 + 按压回弹动画 */
+div.stButton > button, [data-testid="stBaseButton-secondary"],
+[data-testid="stBaseButton-primary"] {
+  transition: transform .18s ease, box-shadow .18s ease, filter .18s ease !important;
+}
+div.stButton > button:hover, [data-testid="stBaseButton-secondary"]:hover,
+[data-testid="stBaseButton-primary"]:hover {
+  transform: translateY(-2px) !important;
+  box-shadow: 0 6px 16px rgba(44, 92, 158, .28) !important;
+  filter: brightness(1.03);
+}
+div.stButton > button:active, [data-testid="stBaseButton-secondary"]:active,
+[data-testid="stBaseButton-primary"]:active {
+  transform: translateY(0) scale(.97) !important;
+  box-shadow: 0 2px 6px rgba(44, 92, 158, .2) !important;
+}
+[data-testid="stBaseButton-primary"] {
+  background: linear-gradient(120deg, #1a3b66, #2c5c9e) !important;
+  color: #fff !important;
+}
+[data-testid="stBaseButton-primary"]:hover {
+  background: linear-gradient(120deg, #22497f, #376db8) !important;
+}
+/* 复选框：卡片化悬停反馈 */
+[data-testid="stCheckbox"] { transition: background .15s ease, border-color .15s ease !important; }
+[data-testid="stCheckbox"]:hover {
+  background: #eef6ff !important;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(44, 92, 158, .15);
+}
+[data-testid="stCheckbox"] label { cursor: pointer; }
+/* 指标卡数值强调 */
+[data-testid="stMetricValue"] { font-weight: 700 !important; }
+[data-testid="stMetricLabel"] { color: #5a6b85 !important; }
 </style>
 """
 
@@ -466,6 +506,30 @@ def step_title(n):
     return None
 
 
+# 小白提示：每步大白话知识点（step_header 折叠展示）
+NOVICE_HINTS = {
+    1: "认领案例＝选一家模拟企业，之后所有数字都跟它挂钩；先看懂四流是什么再开工。",
+    2: "五道题全是基础常识（增值税/消费税/企税/个税/四流），答对不到 3 题会被锁住不让往下做，先预习。",
+    3: "每张票有三个分：来源＋签章＋可追溯，加起来 **<50 就是异常票**，把它勾出来就得分。",
+    4: "凭证要借贷平衡：280＋进项＝贷方金额；物流单据缺失＝四流断了，要选「存在断裂」。",
+    5: "应纳增值税＝销售额×13%−进项；换小规模身份算法不同，系统会实时重算给你看。",
+    6: "成套卖按最高税率算（150 元），分开开票能降到 120 元——这就是筹划。",
+    7: "匹配率＝进项÷销项，**低于 70% 仪表盘变红**预警。",
+    8: "异常票对应的进项税不能抵扣，要把 8.5 万×(1＋种子系数) 转出。",
+    9: "捐赠超过利润 12% 的部分要调增纳税；分两年捐更省税。",
+    10: "工资和年终奖分开计税更省（3480→1800），每人 2 分，自己算。",
+    11: "写方案要带政策文件号（如财税〔2016〕103 号）＋关键做法词，别出现「不开票」这类词。",
+    12: "系统会搜你的文字：命中负面词直接 0 分，老老实实写「四流一致、如实申报」才对。",
+    13: "稽查要固定证据：合同/资金/物流/发票四类，只勾 1 类闭合度只有 25%。",
+    14: "选 A 话术最稳，引用条款文件号可再 +4。",
+    15: "定性＝风险条＋证据链综合判断：「无问题」信用 +5、「偷税」直接 −50。",
+    16: "系统自动生成报告草稿，点一下按钮就行。",
+    17: "做同类题可加分：Q1 选 150、Q2 选 3480、再勾上「已观看」。",
+    18: "提交最终报告 2 分＋教师认可 1 分（演示环境默认认可）。",
+    19: "问卷填完整 +3，写 5 个字以上建议再 +2。",
+}
+
+
 def step_header(n):
     """展示计划书要求的“目标要求 / 合理用时 / 赋分模型 / 成绩类型”四元组。"""
     meta = step_title(n)
@@ -480,6 +544,10 @@ def step_header(n):
         f'合理用时：{mins} 分钟 ｜ 满分：{full} 分 ｜ 成绩类型：{stype}</div></div>',
         unsafe_allow_html=True,
     )
+    hint = NOVICE_HINTS.get(n)
+    if hint:
+        with st.expander("🐣 小白提示（本步在练什么）"):
+            st.markdown(hint)
 
 
 def score_badge(n, score=None):
@@ -639,13 +707,16 @@ def render_s3():
     step_header(3)
     st.markdown("**目标要求**：对 12 张数电票逐一查验，系统为每张票计算 P = 来源 40 + 签章 30 + 可追溯 30，"
                 "标出 P＜50 的异常票（系统不直接标红，由你判断）。查验 1 张给 0.5 分，准确标出 2 张异常票再给 4 分。")
-    df = pd.DataFrame(
-        [{"票号": inv[0], "来源分": inv[1], "签章分": inv[2], "可追溯分": inv[3],
-          "P 值（系统计算）": inv[1] + inv[2] + inv[3]} for inv in INVOICES]
-    )
-    st.dataframe(df, width="stretch", hide_index=True)
-    marked = st.multiselect("请标注你认为 P＜50 的异常票（系统不会替你标红）",
-                            [inv[0] for inv in INVOICES], key="s3_marked")
+    st.markdown("**逐一查验**：点击卡片勾选你认为 **P＜50** 的异常票（系统不会替你标红，卡片已显示各项分值）：")
+    cb_cols = st.columns(3)
+    marked = []
+    for i, inv in enumerate(INVOICES):
+        pid = inv[0]
+        pval = inv[1] + inv[2] + inv[3]
+        with cb_cols[i % 3]:
+            if st.checkbox(f"🧾 {pid} ｜ 来源 {inv[1]} ＋ 签章 {inv[2]} ＋ 可追溯 {inv[3]} ＝ P {pval}",
+                           key=f"s3_cb_{pid}"):
+                marked.append(pid)
     if st.button("提交查验结果", key="s3_submit", type="primary"):
         true_abn = set(abnormal_invoices())
         marked_set = set(marked)
@@ -758,7 +829,7 @@ def render_s7():
     st.markdown("当期数据：销项税额 **54.6 万元**（销售额 420 万 × 13%），进项税额 **36.4 万元**。")
     ratio_input = st.number_input("进销匹配率（%，请自行计算）", value=None, placeholder="如 66.67", step=0.01, key="s7_ratio")
     color_input = st.radio("仪表盘应显示的颜色（阈值 70%，低于触发预警）",
-                           ["绿色（正常）", "黄色（关注）", "红色（预警）"], key="s7_color")
+                           ["绿色（正常）", "黄色（关注）", "红色（预警）"], key="s7_color", horizontal=True)
     if st.button("提交判断", key="s7_submit", type="primary"):
         if ratio_input is None:
             st.warning("请先计算并输入进销匹配率，再提交判断。")
@@ -817,7 +888,8 @@ def render_s9():
                 "捐赠分年选择正确再加 5 分。本步为税收学 / 会计学分支选做。")
     c = CASES["商贸公司"]
     adj = st.number_input("A105000 纳税调增金额（万元）", value=None, placeholder="如 8.0", step=0.5, key="s9_adj")
-    plan = st.radio("捐赠时间安排", ["一次性捐赠（当年全部捐出）", "分两年捐赠（第 1 年 12 万、第 2 年 8 万）"], key="s9_plan")
+    plan = st.radio("捐赠时间安排", ["一次性捐赠（当年全部捐出）", "分两年捐赠（第 1 年 12 万、第 2 年 8 万）"],
+                    key="s9_plan", horizontal=True)
     if st.button("提交汇算", key="s9_submit", type="primary"):
         if adj is None:
             st.warning("请先计算并输入纳税调增金额，再提交汇算。")
@@ -842,7 +914,8 @@ def render_s10():
     for p in S10_PERSONS:
         answers[p["id"]] = st.number_input(f"{p['id']}（{p['type']}，预扣税额 万元）",
                                            value=None, placeholder="计算后填写", step=0.001, key=f"s10_{p['id']}")
-    split = st.radio("案例 D 最优拆分方案", ["全部作为工资（3480 元）", "工资 9.6 万 + 年终奖 2.4 万（1800 元）"], key="s10_split")
+    split = st.radio("案例 D 最优拆分方案", ["全部作为工资（3480 元）", "工资 9.6 万 + 年终奖 2.4 万（1800 元）"],
+                     key="s10_split", horizontal=True)
     if st.button("提交申报", key="s10_submit", type="primary"):
         if any(v is None for v in answers.values()):
             st.warning("请先填齐 5 名人员的预扣税额，再提交申报。")
@@ -903,8 +976,14 @@ def render_s13():
     st.markdown("**目标要求**：切换稽查角色，固定合同 / 资金 / 物流 / 发票四类证据，计算证据链闭合度"
                 " = 已固定证据类数 / 应固定证据类数。闭合度计算正确 6 分，四类证据齐全再给 4 分。")
     st.info("当前对抗角色：【税务稽查】——同一证据包，从稽查视角审视。")
-    ev = st.multiselect("已固定的证据类（可多选）", ["合同", "资金", "物流", "发票"],
-                        default=["合同", "发票", "资金"], key="s13_ev")
+    st.markdown("**已固定的证据类（点击卡片勾选，可多选）**：")
+    ev_cols = st.columns(4)
+    ev = []
+    for col, (ename, default_on) in zip(ev_cols,
+            [("合同", True), ("资金", True), ("物流", False), ("发票", True)]):
+        with col:
+            if st.checkbox(f"📦 {ename}", value=default_on, key=f"s13_cb_{ename}"):
+                ev.append(ename)
     closure_input = st.number_input("证据链闭合度（%，请自行计算）", value=None, placeholder="如 75.0", step=1.0, key="s13_closure")
     if st.button("提交取证", key="s13_submit", type="primary"):
         if closure_input is None:
@@ -965,8 +1044,9 @@ def render_s15():
     col1, col2 = st.columns(2)
     col1.metric("纳税信用分", f"{s['credit_score']} → {credit_new}", delta=credit_note)
     col2.metric("稽查风险值", f"{s['risk_points']} / 100")
-    agree = st.radio("定性结果与证据链是否一致？", ["一致", "不一致"], key="s15_agree")
-    credit_input = st.radio("信用分变化档位", ["+5（无问题）", "−20（一般违规）", "−50（偷税）"], key="s15_credit")
+    agree = st.radio("定性结果与证据链是否一致？", ["一致", "不一致"], key="s15_agree", horizontal=True)
+    credit_input = st.radio("信用分变化档位", ["+5（无问题）", "−20（一般违规）", "−50（偷税）"],
+                            key="s15_credit", horizontal=True)
     if st.button("确认结算", key="s15_submit", type="primary"):
         score = 8 if agree == "一致" else 0
         expect = "+5（无问题）" if outcome == "无问题" else ("−20（一般违规）" if outcome == "一般违规" else "−50（偷税）")
@@ -1004,9 +1084,9 @@ def render_s17():
     else:
         st.success("当前无失分步骤，AI 建议保持节奏进入报告环节。")
     q1 = st.radio("同类题 1：面霜 800 元（15%）与工具 200 元成套销售，应纳消费税（元）？",
-                  ["120", "150", "180"], key="s17_q1")
+                  ["120", "150", "180"], key="s17_q1", horizontal=True)
     q2 = st.radio("同类题 2：年薪 12 万、减除 6 万，全部按工资计税的应纳税额（元）？",
-                  ["1800", "3480", "5790"], key="s17_q2")
+                  ["1800", "3480", "5790"], key="s17_q2", horizontal=True)
     watched = st.checkbox("已完成 3 分钟微课观看", key="s17_watch")
     if st.button("提交练习", key="s17_submit", type="primary"):
         score = 6 if q1 == "150" and q2 == "3480" else 0
@@ -1044,7 +1124,8 @@ def render_s19():
                 "开放性建议，生成班级反馈热力图。问卷提交完整 3 分，附具体改进建议再加 2 分。")
     diff = st.select_slider("难度感知", options=["很容易", "较容易", "适中", "较难", "很难"], key="s19_diff")
     best = st.selectbox("最有收获的步骤", [f"S{n} {name}" for n, name, _, _, _ in STEPS], key="s19_best")
-    conf = st.selectbox("最困惑的税种", ["增值税", "消费税", "企业所得税", "个人所得税"], key="s19_conf")
+    conf = st.radio("最困惑的税种", ["增值税", "消费税", "企业所得税", "个人所得税"],
+                    key="s19_conf", horizontal=True)
     more = st.text_input("希望增加的案例类型（可选）", key="s19_more")
     advice = st.text_area("开放性建议（填写可 +2 分）", height=80, key="s19_advice")
     if st.button("提交反馈", key="s19_submit", type="primary"):
@@ -1351,6 +1432,7 @@ def render_home():
 def main():
     init_state()
     st.set_page_config(page_title="金税四期·业票税信虚仿实验", page_icon="🧾", layout="wide")
+    st.markdown(UI_CSS, unsafe_allow_html=True)
     render_sidebar()
     cur = st.session_state.get("current_step", 1)
     if not st.session_state.get("started") and cur != 1:
