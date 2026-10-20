@@ -25,12 +25,29 @@ def all_text(at, seq_names=("markdown", "success", "info", "caption", "warning",
             pass
     return " ".join(parts)
 
+def sb_text(at):
+    parts = []
+    for sname in ("markdown", "caption", "info", "warning", "success", "expander"):
+        try:
+            for el in getattr(at.sidebar, sname):
+                v = getattr(el, "value", None) or getattr(el, "label", None)
+                if v:
+                    parts.append(str(v))
+        except Exception:
+            pass
+    return " ".join(parts)
+
 at = AppTest.from_file(APP, default_timeout=120)
 at.run()
 
 # 1. 首页标题
 check("首页含主标题", "金税四期下" in all_text(at))
 check("首页含四流导览", "耦合推演" in all_text(at) or "业务流" in all_text(at))
+
+# 1.5 未开始门控：侧边栏仅提示，无跳转按钮
+check("未开始时侧边栏有门控提示", "请先开始实验" in sb_text(at),
+      sb_text(at)[:100])
+check("未开始时无导航按钮", len([b for b in at.sidebar.button if b.key and str(b.key).startswith("nav_")]) == 0)
 
 # 2. 启动按钮
 launch = [b for b in at.button if "确认认领并接收董事会 KPI" in str(b.label)]
@@ -42,6 +59,13 @@ check("案例落库值为零售店", at.session_state["case"] == "零售店",
       str(at.session_state.get("case")))
 check("S1 得分 3", at.session_state["scores"].get(1) == 3,
       str(at.session_state["scores"]))
+
+# 2.5 新侧边栏结构：流程跳转格 / 后果预告 / 待办 / 审计
+check("侧边栏含流程跳转格", "流程跳转格" in sb_text(at), sb_text(at)[:120])
+check("侧边栏含后果预告", "下一步后果预告" in sb_text(at))
+check("侧边栏含知识速查", "公式速查" in sb_text(at))
+check("侧边栏含待办", "下一轮待办" in sb_text(at))
+check("侧边栏含审计留痕", "可回滚" in sb_text(at))
 
 # 3. 侧边栏导航按钮
 navs = [b for b in at.sidebar.button if b.key and str(b.key).startswith("nav_")]
@@ -66,6 +90,29 @@ submit2[0].click(); at.run()
 check("快测得分 5", at.session_state["quiz_score"] == 5,
       str(at.session_state.get("quiz_score")))
 check("S2 得分 5", at.session_state["scores"].get(2) == 5,
+      str(at.session_state["scores"]))
+
+# 4.5 撤销上一步：S2 得分回滚，可重做
+undo_btn = [b for b in at.sidebar.button if b.key == "undo_last"]
+check("撤销按钮存在", len(undo_btn) == 1, str([b.key for b in at.sidebar.button])[:160])
+undo_btn[0].click(); at.run()
+check("撤销后 S2 得分已移除", at.session_state["scores"].get(2) is None,
+      str(at.session_state["scores"]))
+check("撤销后 S2 完成标志复位", at.session_state["s2_done"] is False)
+check("撤销后审计条数减少", "已审计 1 条操作" in sb_text(at), sb_text(at)[:160])
+
+# 4.6 重做 S2（快测状态已重置）
+nav2b = [b for b in at.sidebar.button if b.key == "nav_2"][0]
+nav2b.click(); at.run()
+radios2b = {r.key: r for r in at.radio}
+check("撤销后 S2 可重新作答", "s2_q0" in radios2b, str(list(radios2b.keys()))[:160])
+for k, v in correct.items():
+    if k in radios2b:
+        radios2b[k].set_value(v)
+qbtn2 = [b for b in at.button if "提交快测" in str(b.label) or "提交测验" in str(b.label)]
+if qbtn2:
+    qbtn2[0].click(); at.run()
+check("重做后 S2 得分恢复 5", at.session_state["scores"].get(2) == 5,
       str(at.session_state["scores"]))
 
 # 5. 跳转 S5 完成增值税复核（一般纳税人 18.2 万）

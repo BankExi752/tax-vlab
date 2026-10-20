@@ -50,6 +50,57 @@ STEPS = [
 ]
 STEP_FULL = 173  # 19 步满分合计
 
+# 篇章分组（对应计划书五阶段：引导认知 / 基础操作 / 风险研判 / 双角色对抗 / 总结复盘）
+PHASES = [
+    ("引导认知", [1, 2]),
+    ("基础操作", [3, 4, 5, 6, 7, 8, 9, 10]),
+    ("风险研判", [11, 12]),
+    ("双角色对抗", [13, 14, 15]),
+    ("总结复盘", [16, 17, 18, 19]),
+]
+
+# 下一步后果预告（按当前步骤查表，未命中用兜底文案）
+NEXT_CONSEQUENCE = {
+    1: "完成认领并确认 KPI 后解锁 S2 理论快测（限时 4 分钟）",
+    2: "快测低于 3 分将阻断重测；通过后进入 S3 发票查验",
+    3: "S3 异常票联动 S8 进项转出与 S15 定性（主依赖链：S3→S8→S5→S7→S15）",
+    4: "四流断裂点（物流单据缺失）未识别将累积稽查风险值",
+    5: "改动纳税人身份即触发全链重算，税负率与税后净利润实时变化",
+    6: "选择拆分筹划可对比消费税差额（成套 150 元 vs 拆分 120 元）",
+    7: "进销匹配率低于 70% 触发预警并累积稽查风险",
+    8: "转出金额由随机种子（红冲时点 × 异常类型）决定，方向须为进项转出",
+    9: "调增额须落入 8 万允许区间；分年捐赠属递延纳税（不改变总税额）",
+    10: "申报每人对 2 分；案例 D 最优拆分为 1800 元方案",
+    11: "方案须含政策文件号与关键表述；命中负面词直接判 0",
+    12: "命中负面词判 0 分并弹预警；合规定性由规则引擎给出",
+    13: "证据链闭合度 = 已固定证据类 ÷ 4，四证齐全才闭环",
+    14: "须选择最合理抗辩话术并完成条款引用（选 A + 文件号得满分）",
+    15: "定性联动纳税信用分与稽查风险条结算，影响最终成绩",
+    16: "报告草稿含操作轨迹 / 得分 / 分支图 / 税负雷达图",
+    17: "AI 拆解失分因子，练习全对可加回部分分数（最高 +10% 权重）",
+    18: "最终版报告按 S17 最终得分生成并提交",
+    19: "问卷提交完整 +3、附具体建议再 +2，形成教学—反馈—迭代闭环",
+}
+DEFAULT_CONSEQUENCE = "完成本步后系统将联动重算税负与稽查风险，结果同步至结算页。"
+
+# 知识速查块：公式 / 白话解释 / 记忆口诀
+FORMULA_HINTS = [
+    ("P = 来源(40) + 签章(30) + 可追溯(30)", "把票据真实性量化为 0–100 分", "P＜50 不得抵扣"),
+    ("进销匹配率 = 进项税额 ÷ 销项税额", "看进项与销项是否成比例", "不足 70% 即预警"),
+    ("税负率 = 应纳税额 ÷ 应税销售额", "单位销售额实际负担多少税", "2%–8% 正常区间"),
+    ("证据链闭合度 = 已固定 ÷ 4", "合同 / 资金 / 物流 / 发票缺一不可", "四证齐全才闭环"),
+]
+
+# 侧边栏紧凑样式（流程跳转格 8 连按钮等）
+SIDEBAR_CSS = """
+<style>
+[data-testid="stSidebar"] button { font-size: 11px !important; line-height: 1.1 !important;
+  padding-top: 0.15rem !important; padding-bottom: 0.15rem !important; }
+[data-testid="stSidebar"] [data-testid="stMetricValue"] { font-size: 15px !important; }
+[data-testid="stSidebar"] [data-testid="stMetric"] { padding-top: 0.3rem; padding-bottom: 0.3rem; }
+</style>
+"""
+
 # 案例数据包（计划书第八章，金额单位：万元，另有注明者除外）
 CASES = {
     "零售店": {
@@ -376,6 +427,7 @@ DEFAULT_STATE = {
     "s11_text": "", "s12_text": "", "s14_citation": "", "s17_correct": False,
     "outcome": "", "outcome_note": "", "s19_filled": False,
     "report_html": "", "final_score": None, "role_swap_used": False,
+    "undo_stack": [], "action_plan": {},
 }
 
 
@@ -434,11 +486,64 @@ def score_badge(n, score=None):
 
 
 def record(n, score, risk_add=0):
-    """记录步骤得分并累积稽查风险值。"""
+    """记录步骤得分并累积稽查风险值；同时压入撤销栈并生成该步 AI 待办建议。"""
     s = st.session_state
+    full = step_title(n)[3]
+    risk_before = s["risk_points"]
+    credit_before = s["credit_score"]
     s["scores"][n] = round(score, 2)
-    s["risk_points"] = risk_accumulate(s["risk_points"], risk_add)
+    s["risk_points"] = risk_accumulate(risk_before, risk_add)
     s[f"s{n}_done"] = True
+    if "undo_stack" not in s:
+        s["undo_stack"] = []
+    s["undo_stack"].append({
+        "step": n, "score": round(score, 2), "full": full,
+        "risk_before": risk_before, "risk_add": risk_add,
+        "credit_before": credit_before,
+    })
+    if "action_plan" not in s:
+        s["action_plan"] = {}
+    s["action_plan"][n] = (f"S{n} 已提交（{score:g}/{full}）——建议核对勾稽后进入下一步；"
+                           f"失分可返回 S{n} 重试或交 S17 AI 提分辅导")
+
+
+def undo_last():
+    """撤销上一步：弹出撤销栈 → 移除该步得分 → 回滚风险/信用 → 重进可重做。"""
+    s = st.session_state
+    stack = s.get("undo_stack", [])
+    if not stack:
+        return False
+    rec = stack.pop()
+    n = rec["step"]
+    s["scores"].pop(n, None)
+    s["risk_points"] = rec["risk_before"]
+    s["credit_score"] = rec["credit_before"]
+    s[f"s{n}_done"] = False
+    if n == 15:
+        s["outcome"] = ""
+        s["outcome_note"] = ""
+    if n == 2:
+        # 撤销快测：重置测验状态以便重做
+        s["quiz_done"] = False
+        s["quiz_score"] = 0
+    if n in (16, 18):
+        s["report_html"] = ""
+    s["final_score"] = None
+    if "action_plan" in s and n in s["action_plan"]:
+        del s["action_plan"][n]
+    return True
+
+
+def gen_action_plan(s, step):
+    """下一轮待办：读 action_plan[step]，未生成则给占位提示。"""
+    plan = s.get("action_plan", {})
+    if step in plan:
+        return plan[step]
+    done = s.get("scores", {}).get(step)
+    if done is not None:
+        full = step_title(step)[3]
+        return f"S{step} 已完成（{done:g}/{full}）——建议核对勾稽后进入下一步"
+    return f"S{step} 尚未完成——完成后自动生成 AI 待办建议（S17 提分辅导）"
 
 
 def dependency_warning(text):
@@ -985,29 +1090,88 @@ def render_summary():
 # ============================================================================
 
 def render_sidebar():
+    """侧边栏：自上而下 11 段，每段用 st.divider() 分隔。"""
     s = st.session_state
     with st.sidebar:
-        st.markdown(f"**金税四期虚仿实验**  {APP_VERSION}")
+        st.markdown(SIDEBAR_CSS, unsafe_allow_html=True)
+        # 1. 标题
+        st.markdown(f"**🎯 金税四期·业票税信虚仿实验**  {APP_VERSION}")
+        # 2. 未开始门控（started=False 只显示提示，避免空引用）
         if not s["started"]:
-            st.caption("请先在首页认领案例并召开董事会")
+            st.divider()
+            st.info("请先开始实验（首页认领案例并召开董事会）")
             return
-        st.markdown(f"案例企业：**{s.get('case','—')}**")
+        # 3. 上下文行：案例 / 角色 / 步骤 / 战略 key-value
+        st.divider()
+        c1, c2 = st.columns(2)
+        c1.caption("案例企业")
+        c1.markdown(f"**{s.get('case', '—')}**")
+        c2.caption("战略目标")
+        c2.markdown("**合规优先**")
         role = st.radio("对抗角色", ["财务", "稽查"], key="role_switch")
         setv("role", role)
+        c3, c4 = st.columns(2)
+        c3.caption("当前步骤")
+        c3.markdown(f"**S{s.get('current_step', 1)}**")
+        c4.caption("定性目标")
+        c4.markdown("**无问题**")
+        # 4. 核心指标卡（st.metric 两列）
+        st.divider()
+        m1, m2 = st.columns(2)
+        m1.metric("累计得分", f"{total_score():g}", delta="满分 173")
+        m2.metric("稽查风险值", f"{s['risk_points']} / 100")
+        # 5. 多维状态条（st.progress：实验进度 / 纳税信用 / 合规稳定）
+        st.divider()
         done = steps_done_count()
         st.progress(done / len(STEPS), text=f"实验进度 {done}/19")
-        st.markdown(risk_bar_svg(s["risk_points"]), unsafe_allow_html=True)
-        st.metric("累计得分", f"{total_score():g} / 173")
-        for n, name, _, _, _ in STEPS:
-            label = f"S{n} {name}"
-            if s.get("scores", {}).get(n) is not None:
-                label += f"  ✓{s['scores'][n]:g}"
-            if st.button(label, key=f"nav_{n}", use_container_width=True):
-                setv("current_step", n)
-                st.rerun()
-        if st.button("结算页", key="nav_summary", use_container_width=True):
+        st.progress(min(100, s["credit_score"]) / 100, text=f"纳税信用 {s['credit_score']}")
+        st.progress(max(0, 100 - s["risk_points"]) / 100, text=f"合规稳定 {100 - s['risk_points']}")
+        # 6. 下一步后果预告（按 step 查表 + 兜底）
+        st.divider()
+        cur = s.get("current_step", 1)
+        st.caption("下一步后果预告")
+        st.markdown(f"**S{cur}**：{NEXT_CONSEQUENCE.get(cur, DEFAULT_CONSEQUENCE)}")
+        # 7. 知识速查块（公式白话解释 + 记忆口诀）
+        st.divider()
+        with st.expander("📘 公式速查 · 记忆口诀"):
+            for formula, explain, mnemonic in FORMULA_HINTS:
+                st.markdown(f"**{formula}**")
+                st.caption(f"{explain}｜口诀：{mnemonic}")
+        # 8. 流程跳转格（每篇章一行按钮矩阵；完成 ✅ + primary 高亮）
+        st.divider()
+        st.caption("流程跳转格（✅ 已完成）")
+        for pname, steps in PHASES:
+            st.markdown(f"**{pname}**")
+            cols = st.columns(len(steps))
+            for col, n in zip(cols, steps):
+                got = s.get("scores", {}).get(n)
+                label = f"✅S{n}" if got is not None else f"S{n}"
+                if col.button(label, key=f"nav_{n}", use_container_width=True,
+                              type="primary" if got is not None else "secondary"):
+                    setv("current_step", n)
+                    st.rerun()
+        if st.button("🏁 结算页", key="nav_summary", use_container_width=True, type="primary"):
             setv("current_step", 99)
             st.rerun()
+        # 9. 下一轮待办（读 action_plan[step]，空则占位）
+        st.divider()
+        st.caption("下一轮待办")
+        st.markdown(gen_action_plan(s, cur))
+        # 10. 撤销上一步（undo_stack 栈：pop → discard → rerun）
+        st.divider()
+        stack = s.get("undo_stack", [])
+        if stack:
+            if st.button(f"↩ 撤销上一步（S{stack[-1]['step']}）", key="undo_last",
+                         use_container_width=True):
+                undo_last()
+                st.rerun()
+        else:
+            st.button("↩ 无可撤销记录", key="undo_last_empty", disabled=True,
+                      use_container_width=True)
+        # 11. 审计留痕
+        st.divider()
+        st.caption(f"🛡 可回滚、可追溯｜已审计 {len(s.get('scores', {}))} 条操作，"
+                   f"栈内 {len(stack)} 条可撤销")
 
 
 def render_home():
