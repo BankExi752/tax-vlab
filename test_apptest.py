@@ -115,6 +115,15 @@ if qbtn2:
 check("重做后 S2 得分恢复 5", at.session_state["scores"].get(2) == 5,
       str(at.session_state["scores"]))
 
+# 4.7 步骤页底部「下一步」跳转按钮
+nb = [b for b in at.button if b.key == "next_2"]
+check("S2 底部有下一步按钮", len(nb) == 1, str([b.key for b in at.button])[:140])
+nb[0].click(); at.run()
+check("点击下一步跳到 S3", at.session_state["current_step"] == 3,
+      str(at.session_state.get("current_step")))
+pb = [b for b in at.button if b.key == "prev_3"]
+check("S3 底部有上一步按钮", len(pb) == 1)
+
 # 5. 跳转 S5 完成增值税复核（一般纳税人 18.2 万）
 nav5 = [b for b in at.sidebar.button if b.key == "nav_5"][0]
 nav5.click(); at.run()

@@ -20,7 +20,7 @@ import re
 import pandas as pd
 import streamlit as st
 
-APP_VERSION = "V1.2"
+APP_VERSION = "V1.3"
 
 # ============================================================================
 # 一、常量与元数据（与计划书 V5.2 严格对齐）
@@ -548,6 +548,22 @@ def gen_action_plan(s, step):
 
 def dependency_warning(text):
     st.warning(text)
+
+
+def render_step_nav(n):
+    """步骤页底部跳转：上一步 / 下一步（S19 的下一步指向结算页）。"""
+    c1, c2, c3 = st.columns([1, 2, 1])
+    with c1:
+        if n > 1:
+            if st.button("← 上一步", key=f"prev_{n}", use_container_width=True):
+                setv("current_step", n - 1)
+                st.rerun()
+    with c3:
+        nxt = 99 if n >= 19 else n + 1
+        label = "下一步 → 结算页" if n >= 19 else f"下一步 → S{n+1}"
+        if st.button(label, key=f"next_{n}", use_container_width=True, type="primary"):
+            setv("current_step", nxt)
+            st.rerun()
 
 
 # ============================================================================
@@ -1202,10 +1218,16 @@ def render_home():
     if not st.session_state.get("started"):
         render_s1()
     else:
-        st.info("已在侧边栏按 S1—S19 继续实验，或点击下方按钮回到认领页。")
-        if st.button("回到 S1 案例认领", key="back_s1"):
-            setv("current_step", 1)
-            st.rerun()
+        st.info("已认领案例并接收 KPI（S1 得分已记录）——可返回首页或进入下一步。")
+        bc1, bc2, bc3 = st.columns([1, 2, 1])
+        with bc1:
+            if st.button("回到 S1 案例认领", key="back_s1", use_container_width=True):
+                setv("current_step", 1)
+                st.rerun()
+        with bc3:
+            if st.button("下一步 → S2", key="next_1", use_container_width=True, type="primary"):
+                setv("current_step", 2)
+                st.rerun()
 
 
 def main():
@@ -1230,6 +1252,7 @@ def main():
                  13: render_s13, 14: render_s14, 15: render_s15, 16: render_s16, 17: render_s17,
                  18: render_s18, 19: render_s19}
     renderers.get(cur, render_home)()
+    render_step_nav(cur)
     st.markdown(f"<div style='margin-top:14px;color:#8a97ab;font-size:12px'>—— {APP_VERSION} ｜ "
                 f"金税四期下“业—票—税—信”多源异构数据耦合推演与合规裁量虚拟仿真实验 ——</div>",
                 unsafe_allow_html=True)
