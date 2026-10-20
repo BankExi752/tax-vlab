@@ -20,7 +20,7 @@ import re
 import pandas as pd
 import streamlit as st
 
-APP_VERSION = "V1.6"
+APP_VERSION = "V1.7"
 
 # ============================================================================
 # 一、常量与元数据（与计划书 V5.2 严格对齐）
@@ -112,27 +112,27 @@ div.stButton > button, [data-testid="stBaseButton-secondary"],
 div.stButton > button:hover, [data-testid="stBaseButton-secondary"]:hover,
 [data-testid="stBaseButton-primary"]:hover {
   transform: translateY(-2px) !important;
-  box-shadow: 0 6px 16px rgba(44, 92, 158, .28) !important;
+  box-shadow: 0 6px 16px rgba(18, 165, 148, .28) !important;
   filter: brightness(1.03);
 }
 div.stButton > button:active, [data-testid="stBaseButton-secondary"]:active,
 [data-testid="stBaseButton-primary"]:active {
   transform: translateY(0) scale(.97) !important;
-  box-shadow: 0 2px 6px rgba(44, 92, 158, .2) !important;
+  box-shadow: 0 2px 6px rgba(18, 165, 148, .2) !important;
 }
 [data-testid="stBaseButton-primary"] {
-  background: linear-gradient(120deg, #1a3b66, #2c5c9e) !important;
+  background: linear-gradient(120deg, #0e5f56, #12a594) !important;
   color: #fff !important;
 }
 [data-testid="stBaseButton-primary"]:hover {
-  background: linear-gradient(120deg, #22497f, #376db8) !important;
+  background: linear-gradient(120deg, #0b4f47, #0ea58f) !important;
 }
 /* 复选框：卡片化悬停反馈 */
 [data-testid="stCheckbox"] { transition: background .15s ease, border-color .15s ease !important; }
 [data-testid="stCheckbox"]:hover {
-  background: #eef6ff !important;
+  background: #e6f7f2 !important;
   border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(44, 92, 158, .15);
+  box-shadow: 0 2px 8px rgba(18, 165, 148, .15);
 }
 [data-testid="stCheckbox"] label { cursor: pointer; }
 /* 指标卡数值强调 */
@@ -178,15 +178,20 @@ ABNORMAL_INVOICES = [inv[0] for inv in INVOICES if inv[1] + inv[2] + inv[3] < 50
 # 税制理论快测（S2）题库：5 题
 QUIZ_S2 = [
     {"q": "现行增值税一般纳税人认定标准中，年应征增值税销售额一般为（　）以上。",
-     "options": ["100 万元", "300 万元", "500 万元", "1000 万元"], "ans": 2},
+     "options": ["100 万元", "300 万元", "500 万元", "1000 万元"], "ans": 2,
+     "tip": "知识点：增值税纳税人身份认定——年销售额 500 万元是一般纳税人认定线"},
     {"q": "下列各项中，属于消费税应税消费品的是（　）。",
-     "options": ["高档化妆品", "普通护肤品", "家用空调", "手机"], "ans": 0},
+     "options": ["高档化妆品", "普通护肤品", "家用空调", "手机"], "ans": 0,
+     "tip": "知识点：消费税税目范围——高档化妆品在 15 档税目中（S6 面霜案例同源）"},
     {"q": "企业发生的公益性捐赠支出，在年度利润总额（　）以内的部分准予在计算应纳税所得额时扣除。",
-     "options": ["5%", "10%", "12%", "25%"], "ans": 2},
+     "options": ["5%", "10%", "12%", "25%"], "ans": 2,
+     "tip": "知识点：企业所得税捐赠扣除限额——利润总额 12%（S9 案例 C 调增 8 万由此而来）"},
     {"q": "居民个人取得全年一次性奖金，可选择按（　）单独计算纳税的优惠政策。",
-     "options": ["工资薪金并入综合所得", "单独计税（不并入综合所得）", "劳务报酬", "经营所得"], "ans": 1},
+     "options": ["工资薪金并入综合所得", "单独计税（不并入综合所得）", "劳务报酬", "经营所得"], "ans": 1,
+     "tip": "知识点：个税年终奖计税方式——单独计税优惠政策（S10 案例 D 1800 元方案）"},
     {"q": "“四流一致”通常指合同流、发票流、资金流与（　）保持一致。",
-     "options": ["物流", "信息流", "人才流", "数据流"], "ans": 0},
+     "options": ["物流", "信息流", "人才流", "数据流"], "ans": 0,
+     "tip": "知识点：业—票—税—信四流一致原则——业务/票据/税款/信用全链耦合（S4 物流断裂预警）"},
 ]
 
 # 负面词 / 正面词（S12 合规判定三层评分中的“关键词匹配 + 负面词过滤”）
@@ -380,7 +385,7 @@ def radar_svg(values, labels, title="税负雷达图", size=320):
         parts.append(f'<text x="{lx:.1f}" y="{ly:.1f}" text-anchor="middle">{_esc(labels[i])}</text>')
     pts = " ".join(f"{pt(i, max(0, min(100, values[i]))/100)[0]:.1f},{pt(i, max(0, min(100, values[i]))/100)[1]:.1f}"
                    for i in range(n))
-    parts.append(f'<polygon points="{pts}" fill="rgba(31,119,180,0.35)" stroke="#1f77b4" stroke-width="2"/>')
+    parts.append(f'<polygon points="{pts}" fill="rgba(31,119,180,0.35)" stroke="#0f766e" stroke-width="2"/>')
     parts.append(f'<text x="{size/2}" y="{size-6}" text-anchor="middle" font-size="12" fill="#333">{_esc(title)}</text>')
     parts.append("</svg>")
     return "".join(parts)
@@ -402,8 +407,8 @@ def gauge_svg(value, max_value, label, unit="%", size=240, warn_low=0, warn_high
                      f'stroke-width="14" stroke-dasharray="{(cx+r-(cx-r))*3.14159*(warn_high/max_value)*0.5} 10000"/>')
     ang = math.radians(angle)
     nx, ny = cx + r * 0.82 * math.cos(ang), cy + r * 0.82 * math.sin(ang)
-    parts.append(f'<line x1="{cx}" y1="{cy}" x2="{nx:.1f}" y2="{ny:.1f}" stroke="#1f77b4" stroke-width="3"/>')
-    parts.append(f'<circle cx="{cx}" cy="{cy}" r="5" fill="#1f77b4"/>')
+    parts.append(f'<line x1="{cx}" y1="{cy}" x2="{nx:.1f}" y2="{ny:.1f}" stroke="#0f766e" stroke-width="3"/>')
+    parts.append(f'<circle cx="{cx}" cy="{cy}" r="5" fill="#0f766e"/>')
     parts.append(f'<text x="{cx}" y="{cy+30}" text-anchor="middle" font-size="22" font-weight="bold" fill="#333">{value}</text>')
     parts.append(f'<text x="{cx}" y="{cy+48}" text-anchor="middle" font-size="12" fill="#666">{_esc(label)}（{unit}）</text>')
     parts.append("</svg>")
@@ -431,7 +436,7 @@ def flows_svg(size=760):
     """业—票—税—信 四流耦合示意图。"""
     w, h = size, 190
     nodes = [
-        ("业务流", "采购 / 销售 / 捐赠 / 薪酬", 40, 60, "#1f77b4"),
+        ("业务流", "采购 / 销售 / 捐赠 / 薪酬", 40, 60, "#0f766e"),
         ("票据流", "数电票 / 异常凭证 / P 指标", 220, 60, "#2ca02c"),
         ("税款流", "增值税 / 消费税 / 企税 / 个税", 400, 60, "#ff7f0e"),
         ("信用流", "纳税信用 / 风险条 / 定性裁量", 580, 60, "#d62728"),
@@ -537,9 +542,9 @@ def step_header(n):
         return
     _, name, mins, full, stype = meta
     st.markdown(
-        f'<div style="background:#f4f7fb;border:1px solid #dbe4f0;border-left:4px solid #1f77b4;'
+        f'<div style="background:#f0f8f5;border:1px solid #bfe8df;border-left:4px solid #0f766e;'
         f'border-radius:6px;padding:10px 14px;margin-bottom:8px">'
-        f'<span style="font-size:17px;font-weight:700;color:#1a3b66">S{n} · {_esc(name)}</span>'
+        f'<span style="font-size:17px;font-weight:700;color:#0e5f56">S{n} · {_esc(name)}</span>'
         f'<div style="font-size:12px;color:#5a6b85;margin-top:4px">'
         f'合理用时：{mins} 分钟 ｜ 满分：{full} 分 ｜ 成绩类型：{stype}</div></div>',
         unsafe_allow_html=True,
@@ -682,7 +687,8 @@ def render_s2():
     answers = {}
     for i, item in enumerate(QUIZ_S2):
         answers[i] = st.radio(f"第 {i+1} 题 · {item['q']}", item["options"],
-                              key=f"s2_q{i}", index=None)
+                              key=f"s2_q{i}", index=None, horizontal=True)
+        st.caption(f"📌 {item['tip']}")
     if st.button("提交快测", key="s2_submit", type="primary"):
         score = sum(1 for i, item in enumerate(QUIZ_S2)
                     if answers.get(i) is not None and answers[i] == item["options"][item["ans"]])
@@ -1123,7 +1129,8 @@ def render_s19():
     st.markdown("**目标要求**：填写结构化问卷：难度感知、最有收获步骤、最困惑税种、希望增加案例类型、"
                 "开放性建议，生成班级反馈热力图。问卷提交完整 3 分，附具体改进建议再加 2 分。")
     diff = st.select_slider("难度感知", options=["很容易", "较容易", "适中", "较难", "很难"], key="s19_diff")
-    best = st.selectbox("最有收获的步骤", [f"S{n} {name}" for n, name, _, _, _ in STEPS], key="s19_best")
+    best = st.radio("最有收获的步骤（点选，无需下拉）",
+                    [f"S{n} {name}" for n, name, _, _, _ in STEPS], key="s19_best", index=4)
     conf = st.radio("最困惑的税种", ["增值税", "消费税", "企业所得税", "个人所得税"],
                     key="s19_conf", horizontal=True)
     more = st.text_input("希望增加的案例类型（可选）", key="s19_more")
@@ -1171,24 +1178,24 @@ def build_report_html(final=False):
     final = calc_final_score(step_sc, report_sc, 90) if final else None
     setv("final_score", final)
     html = f"""
-    <div style="font-family:'Microsoft YaHei',sans-serif;border:1px solid #dbe4f0;border-radius:10px;
+    <div style="font-family:'Microsoft YaHei',sans-serif;border:1px solid #bfe8df;border-radius:10px;
                 padding:18px 22px;background:#fff">
-      <h3 style="margin:0 0 6px;color:#1a3b66">实验报告{'(最终版)' if final else '(草稿)'}</h3>
+      <h3 style="margin:0 0 6px;color:#0e5f56">实验报告{'(最终版)' if final else '(草稿)'}</h3>
       <div style="color:#5a6b85;font-size:13px;margin-bottom:10px">
         案例企业：{_esc(s.get('case','—'))} ｜ 定性结果：{_esc(s.get('outcome','未结算'))}
          ｜ 完成步骤 {done}/19 ｜ 步骤得分 {step_sc:g}/173 ｜ 稽查风险值 {s['risk_points']}/100
          ｜ 纳税信用分 {s['credit_score']}</div>
       <table style="border-collapse:collapse;width:100%;font-size:13px">
-        <tr style="background:#f4f7fb"><th style="border:1px solid #dbe4f0;padding:5px">步骤</th>
-        <th style="border:1px solid #dbe4f0;padding:5px">名称</th>
-        <th style="border:1px solid #dbe4f0;padding:5px">得分</th>
-        <th style="border:1px solid #dbe4f0;padding:5px">满分</th></tr>{rows}
-        <tr style="background:#fbfaf5"><td colspan="2" style="border:1px solid #dbe4f0;padding:5px;font-weight:700">合计</td>
-        <td style="border:1px solid #dbe4f0;padding:5px;font-weight:700">{step_sc:g}</td>
-        <td style="border:1px solid #dbe4f0;padding:5px;font-weight:700">173</td></tr>
+        <tr style="background:#f0f8f5"><th style="border:1px solid #bfe8df;padding:5px">步骤</th>
+        <th style="border:1px solid #bfe8df;padding:5px">名称</th>
+        <th style="border:1px solid #bfe8df;padding:5px">得分</th>
+        <th style="border:1px solid #bfe8df;padding:5px">满分</th></tr>{rows}
+        <tr style="background:#fbfaf5"><td colspan="2" style="border:1px solid #bfe8df;padding:5px;font-weight:700">合计</td>
+        <td style="border:1px solid #bfe8df;padding:5px;font-weight:700">{step_sc:g}</td>
+        <td style="border:1px solid #bfe8df;padding:5px;font-weight:700">173</td></tr>
       </table>
       <div style="margin-top:10px">{radar}</div>
-      <div style="font-size:13px;color:#1a3b66;margin-top:8px">实验成绩（百分制）=
+      <div style="font-size:13px;color:#0e5f56;margin-top:8px">实验成绩（百分制）=
         操作 {step_sc}/173×100×60% + 报告与理论 {report_sc}×30% + 综合 90×10% =
         {calc_final_score(step_sc, report_sc, 90)} 分</div>
     </div>"""
@@ -1229,7 +1236,7 @@ def render_summary():
     comp = 90          # 综合考核（演示环境默认 90，无独立交互步骤）
     final = calc_final_score(step_sc, report_sc, comp)
     setv("final_score", final)
-    st.markdown(f"<h2 style='color:#1a3b66'>实验结算</h2>", unsafe_allow_html=True)
+    st.markdown(f"<h2 style='color:#0e5f56'>实验结算</h2>", unsafe_allow_html=True)
     c1, c2, c3, c4 = st.columns(4)
     c1.metric("步骤得分", f"{step_sc:g} / 173")
     c2.metric("实验成绩（百分制）", f"{final} 分")
@@ -1340,14 +1347,14 @@ def render_sidebar():
 def render_home():
     # 1. 主视觉标题栏（参考版面：蓝色渐变大标题 + 元信息副标题）
     st.markdown(
-        f"<div style='background:linear-gradient(120deg,#1a3b66,#2c5c9e);border-radius:12px;"
+        f"<div style='background:linear-gradient(120deg,#0e5f56,#12a594);border-radius:12px;"
         f"padding:26px 30px;color:#fff'>"
-        f"<div style='font-size:12px;letter-spacing:2px;color:#bcd3f0'>2026 中国仿真创新应用大赛 · 仿真教学创新设计方向</div>"
+        f"<div style='font-size:12px;letter-spacing:2px;color:#bfe9e0'>2026 中国仿真创新应用大赛 · 仿真教学创新设计方向</div>"
         f"<h1 style='margin:8px 0 4px;font-size:26px;line-height:1.4'>金税四期下“业—票—税—信”多源异构数据<br>"
         f"耦合推演与合规裁量虚拟仿真实验</h1>"
-        f"<div style='font-size:13px;color:#dfe9f7;margin-top:6px'>会计学 / 财务管理 / 税收学 ｜ "
+        f"<div style='font-size:13px;color:#e2f6f1;margin-top:6px'>会计学 / 财务管理 / 税收学 ｜ "
         f"税法 · 税务稽查 · 纳税筹划 · 税务会计 ｜ 综合设计型 + 探究型 + 对抗型</div>"
-        f"<div style='font-size:13px;color:#dfe9f7;margin-top:4px'>"
+        f"<div style='font-size:13px;color:#e2f6f1;margin-top:4px'>"
         f"19 步交互节点 ｜ 4 税联动（增值税/消费税/企税/个税） ｜ 满分 173 ｜ 8 学时（课前 1 + 课中 6 + 课后 1）</div></div>",
         unsafe_allow_html=True,
     )
@@ -1363,10 +1370,10 @@ def render_home():
     cols = st.columns(5)
     for col, (name, span, desc) in zip(cols, phase_cards):
         col.markdown(
-            f"<div style='background:#f4f7fb;border:1px solid #dbe4f0;border-radius:10px;"
-            f"padding:12px 10px;height:140px'>"
-            f"<div style='font-weight:700;color:#1a3b66'>{name}</div>"
-            f"<div style='font-size:12px;color:#2c5c9e;margin:4px 0'>{span}</div>"
+            f"<div style='background:#f0f8f5;border:1px solid #bfe8df;border-radius:10px;"
+            f"padding:12px 10px;min-height:120px'>"
+            f"<div style='font-weight:700;color:#0e5f56'>{name}</div>"
+            f"<div style='font-size:12px;color:#12a594;margin:4px 0'>{span}</div>"
             f"<div style='font-size:12px;color:#5a6b85;line-height:1.6'>{desc}</div></div>",
             unsafe_allow_html=True,
         )
@@ -1381,18 +1388,18 @@ def render_home():
     st.markdown("### ⚖️ 对抗与结算机制")
     mc1, mc2, mc3 = st.columns(3)
     mc1.markdown(
-        "<div style='background:#eef6ff;border:1px solid #dbe9ff;border-radius:10px;padding:12px 14px;height:118px'>"
-        "<div style='font-weight:700;color:#1a3b66'>双角色对抗</div>"
+        "<div style='background:#e6f7f2;border:1px solid #c9ece2;border-radius:10px;padding:12px 14px;min-height:104px'>"
+        "<div style='font-weight:700;color:#0e5f56'>双角色对抗</div>"
         "<div style='font-size:12px;color:#5a6b85;margin-top:6px;line-height:1.6'>财务总监 vs 税务稽查，同一证据包两种视角；"
         "S13 切入稽查取证 → S14 财务抗辩 → S15 定性结算。</div></div>", unsafe_allow_html=True)
     mc2.markdown(
-        "<div style='background:#f0f7f0;border:1px solid #dcebd8;border-radius:10px;padding:12px 14px;height:118px'>"
-        "<div style='font-weight:700;color:#1a3b66'>定性三档</div>"
+        "<div style='background:#f0f7f0;border:1px solid #dcebd8;border-radius:10px;padding:12px 14px;min-height:104px'>"
+        "<div style='font-weight:700;color:#0e5f56'>定性三档</div>"
         "<div style='font-size:12px;color:#5a6b85;margin-top:6px;line-height:1.6'>无问题 / 一般违规 / 偷税——规则引擎"
         "（关键词 + 负面词过滤 + 教师兜底）+ 参数扰动种子推演。</div></div>", unsafe_allow_html=True)
     mc3.markdown(
-        "<div style='background:#fdf6ee;border:1px solid #f0e2cd;border-radius:10px;padding:12px 14px;height:118px'>"
-        "<div style='font-weight:700;color:#1a3b66'>成绩构成</div>"
+        "<div style='background:#fdf6ee;border:1px solid #f0e2cd;border-radius:10px;padding:12px 14px;min-height:104px'>"
+        "<div style='font-weight:700;color:#0e5f56'>成绩构成</div>"
         "<div style='font-size:12px;color:#5a6b85;margin-top:6px;line-height:1.6'>操作 60%（19 步 173 分）+ "
         "报告理论 30% + 综合 10%；稽查风险与纳税信用双向联动。</div></div>", unsafe_allow_html=True)
     # 5. 实验介绍（参考版面：折叠项——教学目标 / 原理 / 过程与方法 / 必读）
