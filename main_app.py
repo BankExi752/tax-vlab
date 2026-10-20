@@ -20,7 +20,7 @@ import re
 import pandas as pd
 import streamlit as st
 
-APP_VERSION = "V1.0"
+APP_VERSION = "V1.2"
 
 # ============================================================================
 # 一、常量与元数据（与计划书 V5.2 严格对齐）
