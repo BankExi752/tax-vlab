@@ -20,7 +20,7 @@ import re
 import pandas as pd
 import streamlit as st
 
-APP_VERSION = "V1.4"
+APP_VERSION = "V1.5"
 
 # ============================================================================
 # 一、常量与元数据（与计划书 V5.2 严格对齐）
@@ -1257,6 +1257,7 @@ def render_sidebar():
 
 
 def render_home():
+    # 1. 主视觉标题栏（参考版面：蓝色渐变大标题 + 元信息副标题）
     st.markdown(
         f"<div style='background:linear-gradient(120deg,#1a3b66,#2c5c9e);border-radius:12px;"
         f"padding:26px 30px;color:#fff'>"
@@ -1264,23 +1265,74 @@ def render_home():
         f"<h1 style='margin:8px 0 4px;font-size:26px;line-height:1.4'>金税四期下“业—票—税—信”多源异构数据<br>"
         f"耦合推演与合规裁量虚拟仿真实验</h1>"
         f"<div style='font-size:13px;color:#dfe9f7;margin-top:6px'>会计学 / 财务管理 / 税收学 ｜ "
-        f"税法 · 税务稽查 · 纳税筹划 · 税务会计 ｜ 综合设计型 + 探究型 + 对抗型</div></div>",
+        f"税法 · 税务稽查 · 纳税筹划 · 税务会计 ｜ 综合设计型 + 探究型 + 对抗型</div>"
+        f"<div style='font-size:13px;color:#dfe9f7;margin-top:4px'>"
+        f"19 步交互节点 ｜ 4 税联动（增值税/消费税/企税/个税） ｜ 满分 173 ｜ 8 学时（课前 1 + 课中 6 + 课后 1）</div></div>",
         unsafe_allow_html=True,
     )
-    st.markdown("### 实验导览")
+    # 2. 实验地图：五篇章卡片（参考版面「实验地图」：篇章名 / 步骤区间 / 一句话说明）
+    st.markdown("### 🗺️ 实验地图：19 步决策全流程（从上到下依次完成）")
+    phase_cards = [
+        ("引导认知", "S1—S2", "认领案例定 KPI，快测达标解锁全流程"),
+        ("基础操作", "S3—S10", "查验发票、校验四流、申报四税"),
+        ("风险研判", "S11—S12", "筹划方案与合规判定，负面词直接预警"),
+        ("双角色对抗", "S13—S15", "稽查取证 ↔ 财务抗辩 → 定性裁量"),
+        ("总结复盘", "S16—S19", "报告草稿 → AI 提分 → 最终报告 → 反馈闭环"),
+    ]
+    cols = st.columns(5)
+    for col, (name, span, desc) in zip(cols, phase_cards):
+        col.markdown(
+            f"<div style='background:#f4f7fb;border:1px solid #dbe4f0;border-radius:10px;"
+            f"padding:12px 10px;height:140px'>"
+            f"<div style='font-weight:700;color:#1a3b66'>{name}</div>"
+            f"<div style='font-size:12px;color:#2c5c9e;margin:4px 0'>{span}</div>"
+            f"<div style='font-size:12px;color:#5a6b85;line-height:1.6'>{desc}</div></div>",
+            unsafe_allow_html=True,
+        )
+    # 3. 逻辑主线（参考版面：先打底子、再显性化后果的两行说明 + 四流耦合图）
+    st.markdown("### 🧩 逻辑主线")
+    st.markdown("先把「业—票—税—信」的耦合底子打好（**业务流 → 票据流 → 税款流 → 信用流**），"
+                "任一业务节点改动即触发全链重算（一处改动、全链震荡）；"
+                "再用**稽查风险条与纳税信用分**把合规后果显性化——前 10 步决定税负底子，后 9 步决定合规表现，"
+                "两边都做好成绩才会高。")
     st.markdown(flows_svg(), unsafe_allow_html=True)
-    st.markdown("四流耦合：**业务流 → 票据流 → 税款流 → 信用流**，任一业务节点改动即触发全链重算（一处改动、全链震荡）。")
-    col1, col2, col3 = st.columns(3)
-    col1.metric("交互节点", "19 步")
-    col2.metric("四大税种", "4 税联动")
-    col3.metric("满分合计", "173 分")
-    st.markdown("""
-- **引导认知**：案例认领 → 理论快测（S1—S2）
-- **基础操作**：发票查验 → 四流校验 → 四税申报（S3—S10）
-- **风险研判**：预警指标 → 筹划方案 → 合规判定（S7、S11—S12）
-- **双角色对抗**：稽查取证 ↔ 财务抗辩 → 定性裁量（S13—S15）
-- **总结复盘**：报告草稿 → AI 提分 → 最终报告 → 学习反馈（S16—S19）
-""")
+    # 4. 对抗与结算机制（参考版面「三轮节奏」三列卡片）
+    st.markdown("### ⚖️ 对抗与结算机制")
+    mc1, mc2, mc3 = st.columns(3)
+    mc1.markdown(
+        "<div style='background:#eef6ff;border:1px solid #dbe9ff;border-radius:10px;padding:12px 14px;height:118px'>"
+        "<div style='font-weight:700;color:#1a3b66'>双角色对抗</div>"
+        "<div style='font-size:12px;color:#5a6b85;margin-top:6px;line-height:1.6'>财务总监 vs 税务稽查，同一证据包两种视角；"
+        "S13 切入稽查取证 → S14 财务抗辩 → S15 定性结算。</div></div>", unsafe_allow_html=True)
+    mc2.markdown(
+        "<div style='background:#f0f7f0;border:1px solid #dcebd8;border-radius:10px;padding:12px 14px;height:118px'>"
+        "<div style='font-weight:700;color:#1a3b66'>定性三档</div>"
+        "<div style='font-size:12px;color:#5a6b85;margin-top:6px;line-height:1.6'>无问题 / 一般违规 / 偷税——规则引擎"
+        "（关键词 + 负面词过滤 + 教师兜底）+ 参数扰动种子推演。</div></div>", unsafe_allow_html=True)
+    mc3.markdown(
+        "<div style='background:#fdf6ee;border:1px solid #f0e2cd;border-radius:10px;padding:12px 14px;height:118px'>"
+        "<div style='font-weight:700;color:#1a3b66'>成绩构成</div>"
+        "<div style='font-size:12px;color:#5a6b85;margin-top:6px;line-height:1.6'>操作 60%（19 步 173 分）+ "
+        "报告理论 30% + 综合 10%；稽查风险与纳税信用双向联动。</div></div>", unsafe_allow_html=True)
+    # 5. 实验介绍（参考版面：折叠项——教学目标 / 原理 / 过程与方法 / 必读）
+    st.markdown("### 📖 实验介绍（教学目标 · 原理 · 过程与方法）")
+    with st.expander("🎯 实验教学目标（学完能干什么）"):
+        st.markdown("掌握金税四期下“业—票—税—信”四流耦合机制；能完成异常凭证识别、四税申报勾稽、"
+                    "筹划方案合规判定；理解财务—稽查对抗与纳税信用联动的后果推演。")
+    with st.expander("⚙️ 实验原理（核心要素仿真设计）"):
+        st.markdown("多源异构数据耦合推演：业务流 → 票据流 → 税款流 → 信用流全链重算；规则引擎定性"
+                    "（关键词匹配 + 负面词过滤 + 教师兜底）；随机种子引入红冲时点与异常类型扰动；"
+                    "稽查风险值与纳税信用分双向联动。")
+    with st.expander("🧭 实验教学过程与实验方法"):
+        st.markdown("案例认领 → 理论快测 → 基础操作 → 风险研判 → 双角色对抗 → 总结复盘六段式推进；"
+                    "综合设计型 + 探究型 + 对抗型；可跨步骤跳转、可撤销上一步、侧边栏随时速查。")
+    with st.expander("💻 实验必读（运行环境要求）"):
+        st.markdown("桌面浏览器（推荐 Chrome / Edge），宽屏布局；每步提交即自动计分并联动重算；"
+                    "S2 快测限时 4 分钟、低于 3 分阻断；成绩 = 操作 60% + 报告理论 30% + 综合 10%。")
+    # 6. 开局设置（参考版面：标题 + 角色提示 + 认领 / 下一步）
+    st.markdown("### 🎮 开局设置（财务总监视角：认领案例 → 接收 KPI → 理论快测）")
+    st.markdown("你是企业**财务总监**，不是旁观者——四流怎么核、税怎么报、筹划怎么选、风险怎么扛，都自己拍板。"
+                "先认领案例确认 KPI（S1），再做 S2 理论快测（≥3 分）解锁 S3—S19。")
     if not st.session_state.get("started"):
         render_s1()
     else:
