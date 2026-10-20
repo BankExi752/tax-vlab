@@ -277,8 +277,8 @@ def radar_svg(values, labels, title="税负雷达图", size=320):
         import math
         rad = math.radians(ang)
         return (cx + r * ratio * math.cos(rad), cy + r * ratio * math.sin(rad))
-    parts = [f'<svg width="{size}" height="{size}" viewBox="0 0 {size} {size}" '
-             f'xmlns="http://www.w3.org/2000/svg" style="font-family:sans-serif;font-size:11px">']
+    parts = [f'<svg width="100%" height="auto" viewBox="0 0 {size} {size}" preserveAspectRatio="xMidYMid meet" '
+             f'xmlns="http://www.w3.org/2000/svg" style="font-family:sans-serif;font-size:11px;display:block;max-width:100%">']
     for ring in (25, 50, 75, 100):
         pts = " ".join(f"{pt(i, ring/100)[0]:.1f},{pt(i, ring/100)[1]:.1f}" for i in range(n))
         parts.append(f'<polygon points="{pts}" fill="none" stroke="#d8dee9" stroke-width="1"/>')
@@ -301,8 +301,8 @@ def gauge_svg(value, max_value, label, unit="%", size=240, warn_low=0, warn_high
     ratio = max(0, min(1, value / max_value))
     angle = 180 + ratio * 180  # 半圆从 180°(左) 到 360°(右)
     cx, cy, r = size / 2, size * 0.72, size * 0.30
-    parts = [f'<svg width="{size}" height="{int(size*0.62)}" viewBox="0 0 {size} {int(size*0.62)}" '
-             f'xmlns="http://www.w3.org/2000/svg" style="font-family:sans-serif">']
+    parts = [f'<svg width="100%" height="auto" viewBox="0 0 {size} {int(size*0.62)}" preserveAspectRatio="xMidYMid meet" '
+             f'xmlns="http://www.w3.org/2000/svg" style="font-family:sans-serif;display:block;max-width:100%">']
     parts.append(f'<path d="M {cx-r},{cy} A {r},{r} 0 0 1 {cx+r},{cy}" fill="none" stroke="#e5e9f0" stroke-width="14"/>')
     if warn_high > 0:
         # 预警区（红段）
@@ -325,7 +325,8 @@ def risk_bar_svg(risk_points, size=520):
     w, h = size, 26
     def seg(x0, x1, color):
         return f'<rect x="{x0}" y="0" width="{x1-x0}" height="{h}" fill="{color}" rx="4"/>'
-    parts = [f'<svg width="{w}" height="{h+18}" viewBox="0 0 {w} {h+18}" xmlns="http://www.w3.org/2000/svg">']
+    parts = [f'<svg width="100%" height="auto" viewBox="0 0 {w} {h+18}" preserveAspectRatio="xMidYMid meet" '
+             f'xmlns="http://www.w3.org/2000/svg" style="display:block;max-width:100%">']
     parts.append(seg(0, int(w*0.6), "#52c41a"))
     parts.append(seg(int(w*0.6), int(w*0.85), "#faad14"))
     parts.append(seg(int(w*0.85), w, "#ff4d4f"))
@@ -344,8 +345,8 @@ def flows_svg(size=760):
         ("税款流", "增值税 / 消费税 / 企税 / 个税", 400, 60, "#ff7f0e"),
         ("信用流", "纳税信用 / 风险条 / 定性裁量", 580, 60, "#d62728"),
     ]
-    parts = [f'<svg width="{w}" height="{h}" viewBox="0 0 {w} {h}" xmlns="http://www.w3.org/2000/svg" '
-             f'style="font-family:sans-serif">']
+    parts = [f'<svg width="100%" height="auto" viewBox="0 0 {w} {h}" preserveAspectRatio="xMidYMid meet" '
+             f'xmlns="http://www.w3.org/2000/svg" style="font-family:sans-serif;display:block;max-width:100%">']
     for i in range(len(nodes) - 1):
         x1 = nodes[i][2] + 150
         parts.append(f'<line x1="{x1}" y1="90" x2="{nodes[i+1][2]}" y2="90" stroke="#bbb" stroke-width="2" '
@@ -950,8 +951,8 @@ def heatmap_svg(dist):
             f'<text x="8" y="{28 + i*30}" font-size="12" fill="#555">{_esc(k)}</text>'
             f'<rect x="110" y="{20 + i*30}" width="{w}" height="18" rx="4" fill="{colors[i]}"/>'
             f'<text x="{118 + w}" y="{33 + i*30}" font-size="12" fill="#333">{v}%</text>')
-    return (f'<svg width="600" height="150" xmlns="http://www.w3.org/2000/svg" '
-            f'style="font-family:sans-serif">{"".join(rows)}</svg>')
+    return (f'<svg width="100%" height="auto" viewBox="0 0 600 150" preserveAspectRatio="xMidYMid meet" '
+            f'xmlns="http://www.w3.org/2000/svg" style="font-family:sans-serif;display:block;max-width:100%">{"".join(rows)}</svg>')
 
 
 def render_summary():
@@ -1022,10 +1023,11 @@ def render_home():
     )
     st.markdown("### 实验导览")
     st.markdown(flows_svg(), unsafe_allow_html=True)
+    st.markdown("四流耦合：**业务流 → 票据流 → 税款流 → 信用流**，任一业务节点改动即触发全链重算（一处改动、全链震荡）。")
     col1, col2, col3 = st.columns(3)
-    col1.metric("交互节点", "19 步（S1—S19）")
-    col2.metric("四大税种", "增值税 / 消费税 / 企税 / 个税")
-    col3.metric("满分合计", "173 分（课内主线 90 分钟）")
+    col1.metric("交互节点", "19 步")
+    col2.metric("四大税种", "4 税联动")
+    col3.metric("满分合计", "173 分")
     st.markdown("""
 - **引导认知**：案例认领 → 理论快测（S1—S2）
 - **基础操作**：发票查验 → 四流校验 → 四税申报（S3—S10）
