@@ -24,7 +24,7 @@ import time
 import pandas as pd
 import streamlit as st
 
-APP_VERSION = "V1.10.8"
+APP_VERSION = "V1.10.9"
 
 # ============================================================================
 # 一、常量与元数据（与计划书 V5.2 严格对齐）
@@ -1656,7 +1656,7 @@ def html_table(df, max_rows=60):
 def render_register_gate():
     """学生实名门控（V1.10）：班级/学号/姓名三项必填校验通过后才可进入实验。"""
     st.markdown(
-        f"<div style='background:linear-gradient(120deg,#8b5cf6,#a78bfa,#c4b5fd);border-radius:12px;"
+        f"<div style='background:linear-gradient(120deg,#a78bfa,#c4b5fd,#ddd6fe);border-radius:12px;"
         f"padding:26px 30px;color:#fff'>"
         f"<div style='font-size:12px;letter-spacing:2px;color:#4c1d95'>2026 中国仿真创新应用大赛 · 仿真教学创新设计方向</div>"
         f"<h1 style='margin:8px 0 4px;font-size:24px;line-height:1.4;color:#4c1d95'>金税四期·业票税信虚仿实验 {APP_VERSION}</h1>"
@@ -1914,7 +1914,7 @@ def render_sidebar():
 def render_home():
     # 1. 主视觉标题栏（参考版面：蓝色渐变大标题 + 元信息副标题）
     st.markdown(
-        f"<div style='background:linear-gradient(120deg,#8b5cf6,#a78bfa,#c4b5fd);border-radius:12px;"
+        f"<div style='background:linear-gradient(120deg,#a78bfa,#c4b5fd,#ddd6fe);border-radius:12px;"
         f"padding:26px 30px;color:#fff'>"
         f"<div style='font-size:12px;letter-spacing:2px;color:#4c1d95'>2026 中国仿真创新应用大赛 · 仿真教学创新设计方向</div>"
         f"<h1 style='margin:8px 0 4px;font-size:26px;line-height:1.4;color:#4c1d95'>金税四期下“业—票—税—信”多源异构数据<br>"
