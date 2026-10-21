@@ -24,7 +24,7 @@ import time
 import pandas as pd
 import streamlit as st
 
-APP_VERSION = "V1.10"
+APP_VERSION = "V1.10.3"
 
 # ============================================================================
 # 一、常量与元数据（与计划书 V5.2 严格对齐）
@@ -817,6 +817,27 @@ def record(n, score, risk_add=0):
                risk=s["risk_points"], credit=s["credit_score"], outcome=s.get("outcome", ""))
 
 
+def modal(kind, title, msg):
+    """V1.10.3：操作结果弹窗。kind ∈ success / error / warning。"""
+    st.session_state["_modal"] = {"kind": kind, "title": title, "msg": msg}
+
+
+@st.dialog("系统提示")
+def render_modal():
+    """渲染当前待展示的操作结果弹窗（在每次 run 开头调用）。"""
+    d = st.session_state.get("_modal")
+    if not d:
+        return
+    icon = {"success": "✅", "error": "❌", "warning": "⚠️"}.get(d["kind"], "ℹ️")
+    color = {"success": "#22c55e", "error": "#ef4444", "warning": "#f59e0b"}.get(d["kind"], "#60a5fa")
+    st.markdown(f"<div style='font-size:20px;font-weight:800;color:{color};margin-bottom:6px'>{icon} {d['title']}</div>",
+                unsafe_allow_html=True)
+    st.markdown(d["msg"])
+    if st.button("知道了", key="dlg_ok", type="primary", width="stretch"):
+        st.session_state.pop("_modal", None)
+        st.rerun()
+
+
 def undo_last():
     """撤销上一步：弹出撤销栈 → 移除该步得分 → 回滚风险/信用 → 重进可重做。"""
     s = st.session_state
@@ -907,6 +928,7 @@ def render_s1():
         setv("kpi_confirmed", True)
         record(1, 3)
         st.success("已认领【" + case_val + "】，KPI 确认完成，得分 +3。可进入 S2 预习。")
+        modal("success", "KPI 认领成功", f"已认领【{case_val}】，KPI 确认完成，得分 +3。可进入 S2 预习。")
         st.rerun()
 
 
@@ -928,6 +950,9 @@ def render_s2():
             st.warning("还有 " + "、".join(f"第 {i+1} 题" for i in unanswered) +
                        " 未作答。请完成全部 5 题后再提交——未作答的题目不会显示答案，"
                        "也无法计分。")
+            modal("warning", "题目未作答完成",
+                  "还有 " + "、".join(f"第 {i+1} 题" for i in unanswered) +
+                  " 未作答，本次提交已阻止。请完成全部 5 题后再提交。")
             return
         score = sum(1 for i, item in enumerate(QUIZ_S2)
                     if answers[i] == item["options"][item["ans"]])
@@ -936,6 +961,7 @@ def render_s2():
         if score < 3:
             setv("quiz_done", False)
             st.error(f"得分 {score}/5，低于 3 分：弹出 10 秒错题提示后可立即重测。")
+            modal("error", "快测未通过", f"得分 {score}/5，低于 3 分（通过线为 ≥3 分）。请阅读错题提示后立即重测。")
             wrong = [i for i, item in enumerate(QUIZ_S2)
                      if answers[i] != item["options"][item["ans"]]]
             if wrong:
@@ -945,6 +971,7 @@ def render_s2():
             setv("quiz_done", True)
             record(2, score)
             st.success(f"快测通过，得分 {score}/5。")
+            modal("success", "快测通过", f"快测通过，得分 {score}/5。S2 已解锁，可继续后续步骤。")
             st.rerun()
 
 
@@ -977,6 +1004,12 @@ def render_s3():
         if false_pos:
             st.warning(f"误标正常票 {false_pos} 张，按 −2 分/张扣除（当前得分 {score:g}/10）。")
         st.success(f"S3 得分 {score:g} / 10（命中 {hits} 张异常票，误标 {false_pos} 张）。")
+        _s3_msg = f"S3 得分 {score:g} / 10（命中 {hits} 张异常票，误标 {false_pos} 张）。"
+        if miss:
+            _s3_msg += f" 漏标异常票：{','.join(sorted(miss))}，稽查风险值 +20。"
+        if false_pos:
+            _s3_msg += f" 误标正常票 {false_pos} 张，按 −2 分/张扣除。"
+        modal("success", "S3 发票查验完成", _s3_msg)
         st.rerun()
 
 
@@ -993,6 +1026,7 @@ def render_s4():
     if st.button("保存凭证", key="s4_submit", type="primary"):
         if input_tax is None or credit is None:
             st.warning("请先补全进项税额与贷方银行存款金额，再保存凭证。")
+            modal("warning", "S4 信息不完整", "请先补全进项税额与贷方银行存款金额，再保存凭证。")
             return
         balanced = abs(280 + input_tax - credit) < 0.05
         score = 5 if balanced else 0
@@ -1002,10 +1036,13 @@ def render_s4():
         else:
             risk_add = 15
             st.warning("四流存在断裂（物流单据缺失）却判定一致，稽查风险值 +15。")
+            modal("warning", "S4 四流判断预警", "四流存在断裂（物流单据缺失）却判定一致，稽查风险值 +15。")
         record(4, min(8, score), risk_add)
         if not balanced:
             st.error("借贷不平衡：280 + 进项税额 ≠ 贷方金额，请核对后重试。")
+            modal("error", "S4 借贷不平衡", "借贷不平衡：280 + 进项税额 ≠ 贷方金额，请核对后重试。")
         st.success(f"S4 得分 {min(8, score):g} / 8。")
+        modal("success", "S4 凭证保存成功", f"S4 得分 {min(8, score):g} / 8。")
         st.rerun()
 
 
@@ -1029,6 +1066,7 @@ def render_s5():
     if st.button("提交复核", key="s5_submit", type="primary"):
         if confirm is None:
             st.warning("请先输入确认的应纳税额，再提交复核。")
+            modal("warning", "S5 数据未填写", "请先输入确认的应纳税额，再提交复核。")
             return
         correct = abs(confirm - tax) < 0.05
         score = 10 if correct else 0
@@ -1036,6 +1074,7 @@ def render_s5():
             score += 2
         record(5, min(12, score))
         st.success(f"S5 得分 {min(12, score):g} / 12（税负率 {burden}%{'落入正常区间 +2' if in_range and correct else ''}）。")
+        modal("success", "S5 税负复核完成", f"S5 得分 {min(12, score):g} / 12（税负率 {burden}%{'落入正常区间 +2' if in_range and correct else ''}）。")
         st.rerun()
 
 
@@ -1058,12 +1097,14 @@ def render_s6():
     if st.button("提交申报", key="s6_submit", type="primary"):
         if confirm is None:
             st.warning("请先输入确认的申报税额，再提交申报。")
+            modal("warning", "S6 数据未填写", "请先输入确认的申报税额，再提交申报。")
             return
         score = 8 if abs(confirm - tax) < 0.5 else 0
         if mode_val == "split":
             score += 5
         record(6, min(13, score))
         st.success(f"S6 得分 {min(13, score):g} / 13。")
+        modal("success", "S6 申报完成", f"S6 得分 {min(13, score):g} / 13。")
         st.rerun()
 
 
@@ -1078,6 +1119,7 @@ def render_s7():
     if st.button("提交判断", key="s7_submit", type="primary"):
         if ratio_input is None:
             st.warning("请先计算并输入进销匹配率，再提交判断。")
+            modal("warning", "S7 数据未填写", "请先计算并输入进销匹配率，再提交判断。")
             return
         true_color = "红色（预警）" if ratio_input < 70 else "绿色（正常）"
         exact = abs(calc_match_rate(36.4, 54.6) - ratio_input) < 0.01
@@ -1090,6 +1132,7 @@ def render_s7():
         record(7, min(10, score), risk_add)
         st.success(f"S7 得分 {min(10, score):g} / 10（系统匹配率 {calc_match_rate(36.4, 54.6)}%，"
                    f"应为【{true_color}】）。")
+        modal("success", "S7 匹配率判断完成", f"S7 得分 {min(10, score):g} / 10。")
         st.rerun()
 
 
@@ -1117,12 +1160,14 @@ def render_s8():
     if st.button("提交分录", key="s8_submit", type="primary"):
         if amount is None:
             st.warning("请先计算并输入进项税额转出金额，再提交分录。")
+            modal("warning", "S8 数据未填写", "请先计算并输入进项税额转出金额，再提交分录。")
             return
         score = 6 if abs(amount - correct_amount) < 0.01 else 0
         score += 4 if debit.startswith("借：主营业务成本") else 0
         score += 2 if abs(amount - correct_amount) < 0.01 else 0
         record(8, min(12, score), 0 if score >= 10 else 10)
         st.success(f"S8 得分 {min(12, score):g} / 12（本种子正确答案 {correct_amount:.3f} 万元）。")
+        modal("success", "S8 进项转出分录完成", f"S8 得分 {min(12, score):g} / 12。")
         st.rerun()
 
 
@@ -1138,6 +1183,7 @@ def render_s9():
     if st.button("提交汇算", key="s9_submit", type="primary"):
         if adj is None:
             st.warning("请先计算并输入纳税调增金额，再提交汇算。")
+            modal("warning", "S9 数据未填写", "请先计算并输入纳税调增金额，再提交汇算。")
             return
         score = 10 if abs(adj - 8.0) < 0.1 else 0
         correct_plan = plan.startswith("分两年")
@@ -1145,6 +1191,7 @@ def render_s9():
             score += 5
         record(9, min(15, score))
         st.success(f"S9 得分 {min(15, score):g} / 15。")
+        modal("success", "S9 汇算清缴完成", f"S9 得分 {min(15, score):g} / 15。")
         _, taxable, tax, note = calc_cit_plan("once" if plan.startswith("一次性") else "two")
         st.info(f"教学结论（{plan}）：应纳税所得 {taxable:g} 万、当年所得税 {tax:g} 万。{note}")
         st.rerun()
@@ -1164,12 +1211,14 @@ def render_s10():
     if st.button("提交申报", key="s10_submit", type="primary"):
         if any(v is None for v in answers.values()):
             st.warning("请先填齐 5 名人员的预扣税额，再提交申报。")
+            modal("warning", "S10 数据未填齐", "请先填齐 5 名人员的预扣税额，再提交申报。")
             return
         score = sum(2 for p in S10_PERSONS if abs(answers[p["id"]] - p["tax"]) < 0.001)
         if split.startswith("工资 9.6"):
             score += 4
         record(10, min(14, score))
         st.success(f"S10 得分 {min(14, score):g} / 14。")
+        modal("success", "S10 个税预扣申报完成", f"S10 得分 {min(14, score):g} / 14。")
         st.rerun()
 
 
@@ -1180,6 +1229,7 @@ def render_s11():
     text = st.text_area("筹划方案（≤200 字，须含政策依据文件号）", height=140, key="s11_text")
     if text and len(text) > 200:
         st.warning(f"已超 200 字（当前 {len(text)} 字），将按 200 字口径判定。")
+        modal("warning", "S11 篇幅超限", f"已超 200 字（当前 {len(text)} 字），将按 200 字口径判定。")
     c1 = st.radio("合规维度自评", ["高", "中", "低"], key="s11_c1")
     c2 = st.radio("经济维度自评", ["高", "中", "低"], key="s11_c2")
     c3 = st.radio("可执行维度自评", ["高", "中", "低"], key="s11_c3")
@@ -1194,6 +1244,7 @@ def render_s11():
             score += 4
         record(11, min(12, score), 15 if ("不开票" in text or "私户" in text) else 0)
         st.success(f"S11 得分 {min(12, score):g} / 12。")
+        modal("success", "S11 筹划方案提交成功", f"S11 得分 {min(12, score):g} / 12。")
         st.rerun()
 
 
@@ -1205,14 +1256,17 @@ def render_s12():
     if st.button("提交判定", key="s12_submit", type="primary"):
         if not (text or "").strip():
             st.warning("请先填写操作描述或方案文本——空提交无法判定，不计分、不记完成。")
+            modal("warning", "S12 空提交拦截", "请先填写操作描述或方案文本——空提交无法判定，不计分、不记完成。")
             return
         score, risk_add, msg = judge_text(text)
         setv("s12_negative_hit", any(w in text for w in NEGATIVE_WORDS))
         record(12, score, risk_add)
         if score == 0:
             st.error(msg + " → 合规判定：偷税倾向，预警！")
+            modal("error", "S12 偷税预警", msg + " → 合规判定：偷税倾向，预警！")
         else:
             st.success(f"S12 得分 {score}/8。{msg}")
+            modal("success", "S12 合规判定完成", f"S12 得分 {score}/8。{msg}")
         st.rerun()
 
 
@@ -1233,6 +1287,7 @@ def render_s13():
     if st.button("提交取证", key="s13_submit", type="primary"):
         if closure_input is None:
             st.warning("请先计算并输入证据链闭合度，再提交取证。")
+            modal("warning", "S13 数据未填写", "请先计算并输入证据链闭合度，再提交取证。")
             return
         true_closure = calc_evidence_closure(len(ev))
         score = 6 if abs(true_closure - closure_input) < 0.01 else 0
@@ -1240,6 +1295,7 @@ def render_s13():
             score += 4
         record(13, min(10, score), 0 if len(ev) >= 3 else 10)
         st.success(f"S13 得分 {min(10, score):g} / 10（闭合度应为 {true_closure}%）。")
+        modal("success", "S13 证据链固定完成", f"S13 得分 {min(10, score):g} / 10（闭合度应为 {true_closure}%）。")
         st.rerun()
 
 
@@ -1262,6 +1318,7 @@ def render_s14():
             score += 4
         record(14, min(10, score))
         st.success(f"S14 得分 {min(10, score):g} / 10。")
+        modal("success", "S14 申辩材料提交成功", f"S14 得分 {min(10, score):g} / 10。")
         st.rerun()
 
 
@@ -1300,6 +1357,7 @@ def render_s15():
         setv("credit_score", credit_new)
         record(15, min(10, score))
         st.success(f"S15 得分 {min(10, score):g} / 10。")
+        modal("success", "S15 稽查约谈完成", f"S15 得分 {min(10, score):g} / 10。")
         st.rerun()
 
 
@@ -1320,6 +1378,7 @@ def render_review():
         setv("report_html", build_report_html())
         record(16, 3)
         st.success("报告草稿已生成（操作轨迹 / 得分明细 / 税负雷达图），得分 +3。")
+        modal("success", "S16 报告草稿已生成", "报告草稿已生成（操作轨迹 / 得分明细 / 税负雷达图），得分 +3。")
         st.rerun()
     if get("report_html"):
         st.markdown(get("report_html"), unsafe_allow_html=True)
@@ -1335,6 +1394,7 @@ def render_review():
         st.markdown("**推荐微课（3 分钟）**：数电票查验与异常凭证识别 ｜ 四税申报勾稽 ｜ 筹划方案政策依据写法。")
     else:
         st.success("当前无失分步骤，AI 建议保持节奏进入报告环节。")
+        modal("success", "S17 AI 提分建议", "当前无失分步骤，AI 建议保持节奏进入报告环节。")
     q1 = st.radio("同类题 1：面霜 800 元（15%）与工具 200 元成套销售，应纳消费税（元）？",
                   ["120", "150", "180"], key="s17_q1", horizontal=True)
     q2 = st.radio("同类题 2：年薪 12 万、减除 6 万，全部按工资计税的应纳税额（元）？",
@@ -1347,6 +1407,7 @@ def render_review():
         setv("s17_correct", q1 == "150" and q2 == "3480")
         record(17, min(10, score))
         st.success(f"S17 得分 {min(10, score):g} / 10。")
+        modal("success", "S17 同类题作答完成", f"S17 得分 {min(10, score):g} / 10。")
         st.rerun()
     st.divider()
 
@@ -1359,6 +1420,7 @@ def render_review():
         # 提交 2 分 + 教师认可 1 分（演示环境默认认可，保证 173 满分可达）
         record(18, 3)
         st.success("最终版报告已生成并提交：提交 2 分 + 教师认可 1 分（演示默认认可），得分 3/3。")
+        modal("success", "S18 最终报告已提交", "最终版报告已生成并提交：提交 2 分 + 教师认可 1 分（演示默认认可），得分 3/3。")
         st.rerun()
     if get("report_html"):
         st.markdown(get("report_html"), unsafe_allow_html=True)
@@ -1367,6 +1429,7 @@ def render_review():
         record(18, 3)  # 2 + 1（教师评价）
         setv("s18_teacher_done", True)
         st.success("教师评语已回填，S18 总分更新为 3/3。")
+        modal("success", "S18 教师评语已回填", "教师评语已回填，S18 总分更新为 3/3。")
     st.divider()
 
     # ---- S19 反馈问卷 ----
@@ -1386,6 +1449,7 @@ def render_review():
         setv("s19_filled", True)
         record(19, min(5, score))
         st.success(f"S19 得分 {min(5, score):g} / 5，感谢反馈！")
+        modal("success", "S19 问卷提交成功", f"S19 得分 {min(5, score):g} / 5，感谢反馈！")
         st.rerun()
     if get("s19_filled"):
         st.markdown("**班级反馈热力图（模拟聚合）**")
@@ -1406,7 +1470,8 @@ def render_review():
         st.download_button("📊 我的成绩档案（CSV）",
                            my_scores.to_csv(index=False).encode("utf-8-sig"),
                            file_name=f"{klass}_{sid}_成绩档案.csv", mime="text/csv",
-                           key="my_scores_csv")
+                           key="my_scores_csv",
+                           on_click=lambda: modal("success", "导出成功", "成绩档案 CSV 已生成，请点击下载并自行存档。"))
     with e2:
         detail = pd.DataFrame(
             [{"步骤": f"S{n}", "名称": step_title(n)[1],
@@ -1415,12 +1480,14 @@ def render_review():
         st.download_button("📋 19 步得分明细（CSV）",
                            detail.to_csv(index=False).encode("utf-8-sig"),
                            file_name=f"{klass}_{sid}_得分明细.csv", mime="text/csv",
-                           key="my_detail_csv")
+                           key="my_detail_csv",
+                           on_click=lambda: modal("success", "导出成功", "得分明细 CSV 已生成，请点击下载并自行存档。"))
     with e3:
         st.download_button("🧾 我的操作日志（CSV）",
                            pd.DataFrame(my_logs).to_csv(index=False).encode("utf-8-sig"),
                            file_name=f"{klass}_{sid}_操作日志.csv", mime="text/csv",
-                           key="my_logs_csv")
+                           key="my_logs_csv",
+                           on_click=lambda: modal("success", "导出成功", "操作日志 CSV 已生成，请点击下载并自行存档。"))
     st.divider()
 
     # ---- 窗格底部导航 ----
@@ -1591,6 +1658,7 @@ def render_register_gate():
             err.append("姓名不能为空")
         if err:
             st.warning("；".join(err) + "，请补全后再进入实验。")
+            modal("warning", "注册信息不完整", "；".join(err) + "，请补全后再进入实验。")
         else:
             existed = _read_csv("students.csv")
             hit = [r for r in existed
@@ -1599,8 +1667,10 @@ def render_register_gate():
             if hit:
                 st.error(f"该学号已注册（班级 {klass.strip()} · {sid.strip()} · 姓名 {hit[0].get('姓名','')}）。"
                          "如非本人，请联系教师处理；本人误操作请核对学号。")
+                modal("error", "注册失败", f"该学号已注册（班级 {klass.strip()} · {sid.strip()} · 姓名 {hit[0].get('姓名','')}）。如非本人，请联系教师处理。")
             else:
                 save_student(klass.strip(), sid.strip(), name.strip())
+                modal("success", "注册成功", f"欢迎 {name.strip()}（{klass.strip()} · {sid.strip()}）！已进入实验，全程操作留痕。")
                 setv("student_registered", True)
                 setv("student", {"班级": klass.strip(), "学号": sid.strip(), "姓名": name.strip()})
                 setv("current_step", 1)
@@ -1623,10 +1693,12 @@ def render_teacher():
         pwd = st.text_input("教师口令", key="teacher_pwd", type="password")
         if st.button("🔑 进入教师端", key="teacher_login", width="stretch", type="primary"):
             if pwd == TEACHER_PASS:
+                modal("success", "教师端登录成功", "已进入教师后台：可查看学生成绩、操作记录、评估并按班级导出。")
                 setv("teacher_authed", True)
                 st.rerun()
             else:
                 st.error("口令错误，请重试。")
+                modal("error", "教师端登录失败", "口令错误，请重试。")
         return
     # 汇总卡
     df = export_scores_df()
@@ -1645,7 +1717,8 @@ def render_teacher():
     with e1:
         st.download_button("📥 导出本班成绩档案（CSV）", df.to_csv(index=False).encode("utf-8-sig"),
                            file_name=f"tax_vlab_{klass}_scores.csv", mime="text/csv",
-                           key="teacher_export_scores")
+                           key="teacher_export_scores",
+                           on_click=lambda: modal("success", "导出成功", "本班成绩档案 CSV 已生成，请点击下载。"))
     with e2:
         logs = _read_csv("logs.csv")
         if klass != "全部班级":
@@ -1653,7 +1726,8 @@ def render_teacher():
         st.download_button("📥 导出操作日志（CSV）",
                            pd.DataFrame(logs).to_csv(index=False).encode("utf-8-sig"),
                            file_name=f"tax_vlab_{klass}_logs.csv", mime="text/csv",
-                           key="teacher_export_logs")
+                           key="teacher_export_logs",
+                           on_click=lambda: modal("success", "导出成功", "操作日志 CSV 已生成，请点击下载。"))
     with e3:
         if st.button("🚪 退出教师端", key="teacher_logout", width="stretch"):
             setv("teacher_authed", False)
@@ -1684,6 +1758,7 @@ def render_teacher():
         if st.button("💾 保存评估", key="teacher_save_assess"):
             save_assessment(str(row["班级"]), sid, comment)
             st.success("评估已保存至 data/assessments.csv")
+            modal("success", "评估已保存", "评估已保存至 data/assessments.csv，学生可在导出档案中查看。")
     else:
         st.caption("暂无学生注册数据——学生完成实名注册后自动出现在这里。")
 
@@ -1804,7 +1879,9 @@ def render_sidebar():
         if stack:
             if st.button(f"↩ 撤销上一步（S{stack[-1]['step']}）", key="undo_last",
                          width="stretch"):
+                _un = stack[-1]["step"]
                 undo_last()
+                modal("success", "撤销成功", f"已撤销 S{_un}，该步得分与稽查风险已回滚，可重新作答。")
                 st.rerun()
         else:
             st.button("↩ 无可撤销记录", key="undo_last_empty", disabled=True,
@@ -1911,6 +1988,8 @@ def main():
     init_state()
     st.set_page_config(page_title="金税四期·业票税信虚仿实验", page_icon="🧾", layout="wide")
     st.markdown(UI_CSS, unsafe_allow_html=True)
+    # V1.10.3 操作结果弹窗（成功/失败统一以对话框说明当前情况）
+    render_modal()
     # V1.10 学生实名门控：未注册（且未走教师端免注册入口）时只见注册页
     if not st.session_state.get("student_registered") and not st.session_state.get("gate_bypass"):
         render_register_gate()

@@ -17,6 +17,9 @@ class _Dummy:
 
 class _StubMod(types.ModuleType):
     def __getattr__(self, k):
+        if k == "dialog":
+            # st.dialog 装饰器透传：@st.dialog("标题") → 原函数不变
+            return lambda *a, **kw: (lambda f: f)
         return lambda *a, **kw: None
 
 stub = _StubMod("streamlit")
