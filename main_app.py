@@ -1563,7 +1563,7 @@ def render_register_gate():
         f"<h1 style='margin:8px 0 4px;font-size:24px;line-height:1.4;color:#fff'>金税四期·业票税信虚仿实验 {APP_VERSION}</h1>"
         f"</div>", unsafe_allow_html=True)
     st.markdown("**学生实名登录**：班级 / 学号 / 姓名 三项必填并校验通过后才能进入实验。")
-    st.info("本实验全程留痕：你的**每步操作（提交/撤销/结算）**都会写入操作日志，成绩由系统自动评定；"
+    st.info("本实验全程留痕：你的每步操作（提交 / 撤销 / 结算）都会写入操作日志，成绩由系统自动评定；"
             "教师端可按班级查看记录、评估与导出成绩。本地/未部署形态支持学生自行导出成绩档案与日志。")
     klass = st.text_input("班级（必填，如：财务2301）", key="reg_class")
     sid = st.text_input("学号（必填）", key="reg_sid")
