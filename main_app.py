@@ -24,7 +24,7 @@ import time
 import pandas as pd
 import streamlit as st
 
-APP_VERSION = "V1.10.4"
+APP_VERSION = "V1.10.5"
 
 # ============================================================================
 # 一、常量与元数据（与计划书 V5.2 严格对齐）
@@ -110,30 +110,30 @@ UI_CSS = """
 <style>
 /* ===== 浅色基调 ===== */
 html, body, [data-testid="stAppViewContainer"], .stApp {
-  background: #f1f5f9 !important;
+  background: #f5f7fa !important;
 }
 [data-testid="stHeader"] { background: rgba(255, 255, 255, .92) !important; }
 [data-testid="stSidebar"] {
   background: #ffffff !important;
-  border-right: 1px solid #e2e8f0 !important;
+  border-right: 1px solid #e5e7eb !important;
 }
 [data-testid="stAppViewContainer"] > .main .block-container { padding-top: 1.2rem; }
-h1, h2, h3, h4, h5 { color: #1e293b !important; }
-p, li, [data-testid="stMarkdownContainer"] p { color: #334155 !important; }
+h1, h2, h3, h4, h5 { color: #111827 !important; }
+p, li, [data-testid="stMarkdownContainer"] p { color: #1f2937 !important; }
 [data-testid="stCaptionContainer"] p, [data-testid="stCaptionContainer"] {
-  color: #64748b !important; }
+  color: #4b5563 !important; }
 /* 输入控件浅色化 */
 [data-testid="stNumberInput"] input, [data-testid="stTextInput"] input,
 [data-testid="stTextArea"] textarea, [data-testid="stSelectbox"] button,
 [data-testid="stDateInput"] input {
-  background: #ffffff !important; color: #1e293b !important;
-  border-color: #cbd5e1 !important;
+  background: #ffffff !important; color: #111827 !important;
+  border-color: #d1d5db !important;
 }
 [data-testid="stNumberInput"] input:focus, [data-testid="stTextInput"] input:focus {
   border-color: #2563eb !important; box-shadow: 0 0 0 1px #2563eb !important;
 }
 /* radio 标签 */
-[data-testid="stRadio"] label, [data-testid="stCheckbox"] label { color: #334155 !important; }
+[data-testid="stRadio"] label, [data-testid="stCheckbox"] label { color: #1f2937 !important; }
 [data-testid="stRadio"] div[role="radiogroup"] label:hover, [data-testid="stCheckbox"] label:hover {
   color: #2563eb !important; }
 /* ===== 按钮：浮起 + 阴影 + 按压回弹 ===== */
@@ -144,18 +144,18 @@ div.stButton > button, [data-testid="stBaseButton-secondary"],
 div.stButton > button:hover, [data-testid="stBaseButton-secondary"]:hover,
 [data-testid="stBaseButton-primary"]:hover {
   transform: translateY(-2px) !important;
-  box-shadow: 0 6px 16px rgba(37, 99, 235, .25) !important;
+  box-shadow: 0 6px 16px rgba(37, 99, 235, .12) !important;
   filter: brightness(1.03);
 }
 div.stButton > button:active, [data-testid="stBaseButton-secondary"]:active,
 [data-testid="stBaseButton-primary"]:active {
   transform: translateY(0) scale(.97) !important;
-  box-shadow: 0 2px 6px rgba(37, 99, 235, .18) !important;
+  box-shadow: 0 2px 6px rgba(37, 99, 235, .10) !important;
 }
 /* ===== 顶部导航：Tab 按钮组（选中=渐变亮蓝 primary，未选=白底浅描边 secondary） ===== */
 [data-testid="stBaseButton-secondary"] {
   background: #ffffff !important; color: #475569 !important;
-  border: 1px solid #cbd5e1 !important;
+  border: 1px solid #d1d5db !important;
   border-radius: 8px !important;
   font-weight: 600 !important; letter-spacing: .5px !important;
 }
@@ -165,7 +165,7 @@ div.stButton > button:active, [data-testid="stBaseButton-secondary"]:active,
   color: #fff !important;
   border-radius: 8px !important;
   font-weight: 700 !important; letter-spacing: .5px !important;
-  box-shadow: 0 2px 10px rgba(37, 99, 235, .35) !important;
+  box-shadow: 0 2px 10px rgba(37, 99, 235, .10) !important;
 }
 [data-testid="stBaseButton-primary"]:hover {
   background: linear-gradient(120deg, #1e40af, #3b82f6) !important;
@@ -181,8 +181,8 @@ div.stButton > button:active, [data-testid="stBaseButton-secondary"]:active,
 [data-testid="stCheckbox"] label { cursor: pointer; }
 /* ===== 指标卡 ===== */
 [data-testid="stMetricValue"] { font-weight: 700 !important; color: #2563eb !important; }
-[data-testid="stMetricLabel"] { color: #64748b !important; }
-[data-testid="stMetric"] { background: #ffffff !important; border: 1px solid #e2e8f0 !important;
+[data-testid="stMetricLabel"] { color: #4b5563 !important; }
+[data-testid="stMetric"] { background: #ffffff !important; border: 1px solid #e5e7eb !important;
   border-radius: 8px; padding: .5rem .7rem; }
 /* ===== 进度条 / 信息框 ===== */
 [data-testid="stProgress"] > div > div > div > div { background: #2563eb !important; }
@@ -190,11 +190,11 @@ div.stButton > button:active, [data-testid="stBaseButton-secondary"]:active,
 [data-testid="stSuccess"] { background: #ecfdf5 !important; color: #047857 !important; border-color: #34d399 !important; }
 [data-testid="stWarning"] { background: #fffbeb !important; color: #b45309 !important; border-color: #fbbf24 !important; }
 [data-testid="stError"] { background: #fef2f2 !important; color: #b91c1c !important; border-color: #f87171 !important; }
-[data-testid="stExpander"] { background: #ffffff !important; border: 1px solid #e2e8f0 !important;
+[data-testid="stExpander"] { background: #ffffff !important; border: 1px solid #e5e7eb !important;
   border-radius: 8px !important; }
-[data-testid="stExpander"] summary { color: #334155 !important; }
+[data-testid="stExpander"] summary { color: #1f2937 !important; }
 /* ===== 分割线 ===== */
-[data-testid="stDivider"] hr { background: #e2e8f0 !important; }
+[data-testid="stDivider"] hr { background: #e5e7eb !important; }
 </style>
 """
 
@@ -603,16 +603,16 @@ def radar_svg(values, labels, title="税负雷达图", size=320):
              f'xmlns="http://www.w3.org/2000/svg" style="font-family:sans-serif;font-size:11px;display:block;max-width:100%">']
     for ring in (25, 50, 75, 100):
         pts = " ".join(f"{pt(i, ring/100)[0]:.1f},{pt(i, ring/100)[1]:.1f}" for i in range(n))
-        parts.append(f'<polygon points="{pts}" fill="none" stroke="#334155" stroke-width="1"/>')
+        parts.append(f'<polygon points="{pts}" fill="none" stroke="#1f2937" stroke-width="1"/>')
     for i in range(n):
         x, y = pt(i, 1)
-        parts.append(f'<line x1="{cx}" y1="{cy}" x2="{x:.1f}" y2="{y:.1f}" stroke="#334155" stroke-width="1"/>')
+        parts.append(f'<line x1="{cx}" y1="{cy}" x2="{x:.1f}" y2="{y:.1f}" stroke="#1f2937" stroke-width="1"/>')
         lx, ly = pt(i, 1.28)
         parts.append(f'<text x="{lx:.1f}" y="{ly:.1f}" text-anchor="middle">{_esc(labels[i])}</text>')
     pts = " ".join(f"{pt(i, max(0, min(100, values[i]))/100)[0]:.1f},{pt(i, max(0, min(100, values[i]))/100)[1]:.1f}"
                    for i in range(n))
     parts.append(f'<polygon points="{pts}" fill="rgba(37,99,235,0.38)" stroke="#2563eb" stroke-width="2"/>')
-    parts.append(f'<text x="{size/2}" y="{size-6}" text-anchor="middle" font-size="12" fill="#334155">{_esc(title)}</text>')
+    parts.append(f'<text x="{size/2}" y="{size-6}" text-anchor="middle" font-size="12" fill="#1f2937">{_esc(title)}</text>')
     parts.append("</svg>")
     return "".join(parts)
 
@@ -625,7 +625,7 @@ def gauge_svg(value, max_value, label, unit="%", size=240, warn_low=0, warn_high
     cx, cy, r = size / 2, size * 0.72, size * 0.30
     parts = [f'<svg width="100%" height="auto" viewBox="0 0 {size} {int(size*0.62)}" preserveAspectRatio="xMidYMid meet" '
              f'xmlns="http://www.w3.org/2000/svg" style="font-family:sans-serif;display:block;max-width:100%">']
-    parts.append(f'<path d="M {cx-r},{cy} A {r},{r} 0 0 1 {cx+r},{cy}" fill="none" stroke="#cbd5e1" stroke-width="14"/>')
+    parts.append(f'<path d="M {cx-r},{cy} A {r},{r} 0 0 1 {cx+r},{cy}" fill="none" stroke="#d1d5db" stroke-width="14"/>')
     if warn_high > 0:
         # 预警区（红段）
         wa = 180 + (warn_high / max_value) * 180
@@ -636,7 +636,7 @@ def gauge_svg(value, max_value, label, unit="%", size=240, warn_low=0, warn_high
     parts.append(f'<line x1="{cx}" y1="{cy}" x2="{nx:.1f}" y2="{ny:.1f}" stroke="#2563eb" stroke-width="3"/>')
     parts.append(f'<circle cx="{cx}" cy="{cy}" r="5" fill="#2563eb"/>')
     parts.append(f'<text x="{cx}" y="{cy+30}" text-anchor="middle" font-size="22" font-weight="bold" fill="#2563eb">{value}</text>')
-    parts.append(f'<text x="{cx}" y="{cy+48}" text-anchor="middle" font-size="12" fill="#64748b">{_esc(label)}（{unit}）</text>')
+    parts.append(f'<text x="{cx}" y="{cy+48}" text-anchor="middle" font-size="12" fill="#4b5563">{_esc(label)}（{unit}）</text>')
     parts.append("</svg>")
     return "".join(parts)
 
@@ -653,7 +653,7 @@ def risk_bar_svg(risk_points, size=520):
     parts.append(seg(int(w*0.6), int(w*0.85), "#faad14"))
     parts.append(seg(int(w*0.85), w, "#ff4d4f"))
     parts.append(f'<rect x="{int(w*pct/100)-2}" y="-4" width="4" height="{h+8}" fill="#111" rx="2"/>')
-    parts.append(f'<text x="{w-8}" y="{h+15}" text-anchor="end" font-size="12" fill="#64748b">稽查风险值 {pct}/100</text>')
+    parts.append(f'<text x="{w-8}" y="{h+15}" text-anchor="end" font-size="12" fill="#4b5563">稽查风险值 {pct}/100</text>')
     parts.append("</svg>")
     return "".join(parts)
 
@@ -770,10 +770,10 @@ def step_header(n):
         return
     _, name, mins, full, stype = meta
     st.markdown(
-        f'<div style="background:#ffffff;border:1px solid #e2e8f0;border-left:4px solid #2563eb;'
+        f'<div style="background:#ffffff;border:1px solid #e5e7eb;border-left:4px solid #2563eb;'
         f'border-radius:6px;padding:10px 14px;margin-bottom:8px">'
         f'<span style="font-size:17px;font-weight:700;color:#2563eb">S{n} · {_esc(name)}</span>'
-        f'<div style="font-size:12px;color:#64748b;margin-top:4px">'
+        f'<div style="font-size:12px;color:#4b5563;margin-top:4px">'
         f'合理用时：{mins} 分钟 ｜ 满分：{full} 分 ｜ 成绩类型：{stype}</div></div>',
         unsafe_allow_html=True,
     )
@@ -787,7 +787,7 @@ def score_badge(n, score=None):
     full = step_title(n)[3]
     got = score if score is not None else st.session_state.get("scores", {}).get(n)
     if got is None:
-        return f'<span style="color:#64748b;font-size:12px">未完成（满分 {full} 分）</span>'
+        return f'<span style="color:#4b5563;font-size:12px">未完成（满分 {full} 分）</span>'
     color = "#52c41a" if got >= full * 0.6 else "#faad14"
     return f'<span style="color:{color};font-weight:700;font-size:13px">已得分 {got:g} / {full} 分</span>'
 
@@ -850,8 +850,8 @@ def render_result_card():
         f"<div style='border-left:5px solid {color};background:{color}14;border-radius:10px;"
         f"padding:14px 18px;margin:10px 0;box-shadow:0 2px 10px rgba(15,23,42,.06);border:1px solid {color}40'>"
         f"<div style='font-size:15px;font-weight:800;color:{color}'>{icon} {title}</div>"
-        f"<div style='font-size:13px;color:#334155;margin-top:6px'>{msg}</div>"
-        f"<div style='font-size:12px;color:#64748b;margin-top:8px'>"
+        f"<div style='font-size:13px;color:#1f2937;margin-top:6px'>{msg}</div>"
+        f"<div style='font-size:12px;color:#4b5563;margin-top:8px'>"
         f"📊 当前状态：稽查风险 {risk} 分 ｜ 纳税信用 {credit} 分 ｜ 已完成 {done}/19 步 ｜ 累计得分 {total}</div>"
         f"<div style='font-size:12px;color:#2563eb;margin-top:4px'>👉 下一步建议：{advice}</div>"
         f"</div>", unsafe_allow_html=True)
@@ -1551,21 +1551,21 @@ def build_report_html(final=False):
     final = calc_final_score(step_sc, report_sc, 90) if final else None
     setv("final_score", final)
     html = f"""
-    <div style="font-family:'Microsoft YaHei',sans-serif;border:1px solid #e2e8f0;border-radius:10px;
+    <div style="font-family:'Microsoft YaHei',sans-serif;border:1px solid #e5e7eb;border-radius:10px;
                 padding:18px 22px;background:#ffffff">
       <h3 style="margin:0 0 6px;color:#2563eb">实验报告{'(最终版)' if final else '(草稿)'}</h3>
-      <div style="color:#64748b;font-size:13px;margin-bottom:10px">
+      <div style="color:#4b5563;font-size:13px;margin-bottom:10px">
         案例企业：{_esc(s.get('case','—'))} ｜ 定性结果：{_esc(s.get('outcome','未结算'))}
          ｜ 完成步骤 {done}/19 ｜ 步骤得分 {step_sc:g}/173 ｜ 稽查风险值 {s['risk_points']}/100
          ｜ 纳税信用分 {s['credit_score']}</div>
       <table style="border-collapse:collapse;width:100%;font-size:13px">
-        <tr style="background:#f1f5f9"><th style="border:1px solid #e2e8f0;padding:5px">步骤</th>
-        <th style="border:1px solid #e2e8f0;padding:5px">名称</th>
-        <th style="border:1px solid #e2e8f0;padding:5px">得分</th>
-        <th style="border:1px solid #e2e8f0;padding:5px">满分</th></tr>{rows}
-        <tr style="background:#ffffff"><td colspan="2" style="border:1px solid #e2e8f0;padding:5px;font-weight:700">合计</td>
-        <td style="border:1px solid #e2e8f0;padding:5px;font-weight:700">{step_sc:g}</td>
-        <td style="border:1px solid #e2e8f0;padding:5px;font-weight:700">173</td></tr>
+        <tr style="background:#f5f7fa"><th style="border:1px solid #e5e7eb;padding:5px">步骤</th>
+        <th style="border:1px solid #e5e7eb;padding:5px">名称</th>
+        <th style="border:1px solid #e5e7eb;padding:5px">得分</th>
+        <th style="border:1px solid #e5e7eb;padding:5px">满分</th></tr>{rows}
+        <tr style="background:#ffffff"><td colspan="2" style="border:1px solid #e5e7eb;padding:5px;font-weight:700">合计</td>
+        <td style="border:1px solid #e5e7eb;padding:5px;font-weight:700">{step_sc:g}</td>
+        <td style="border:1px solid #e5e7eb;padding:5px;font-weight:700">173</td></tr>
       </table>
       <div style="margin-top:10px">{radar}</div>
       <div style="font-size:13px;color:#2563eb;margin-top:8px">实验成绩（百分制）=
@@ -1594,9 +1594,9 @@ def heatmap_svg(dist):
     for i, (k, v) in enumerate(dist.items()):
         w = int(480 * v / total)
         rows.append(
-            f'<text x="8" y="{28 + i*30}" font-size="12" fill="#64748b">{_esc(k)}</text>'
+            f'<text x="8" y="{28 + i*30}" font-size="12" fill="#4b5563">{_esc(k)}</text>'
             f'<rect x="110" y="{20 + i*30}" width="{w}" height="18" rx="4" fill="{colors[i]}"/>'
-            f'<text x="{118 + w}" y="{33 + i*30}" font-size="12" fill="#334155">{v}%</text>')
+            f'<text x="{118 + w}" y="{33 + i*30}" font-size="12" fill="#1f2937">{v}%</text>')
     return (f'<svg width="100%" height="auto" viewBox="0 0 600 150" preserveAspectRatio="xMidYMid meet" '
             f'xmlns="http://www.w3.org/2000/svg" style="font-family:sans-serif;display:block;max-width:100%">{"".join(rows)}</svg>')
 
@@ -1633,9 +1633,9 @@ def render_summary():
 def html_table(df, max_rows=60):
     """深色 HTML 表格（替代 st.dataframe，避免 pyarrow 依赖，本地/云端均稳定渲染）。"""
     if df is None or len(df) == 0:
-        return "<div style='color:#64748b;font-size:13px;padding:8px'>暂无数据</div>"
+        return "<div style='color:#4b5563;font-size:13px;padding:8px'>暂无数据</div>"
     cols = list(df.columns)
-    head = "".join(f"<th style='border:1px solid #e2e8f0;padding:6px 10px;background:#f1f5f9;"
+    head = "".join(f"<th style='border:1px solid #e5e7eb;padding:6px 10px;background:#f5f7fa;"
                    f"color:#2563eb;font-size:12px;text-align:left'>{_esc(c)}</th>" for c in cols)
     body = ""
     for i, (_, r) in enumerate(df.head(max_rows).iterrows()):
@@ -1644,11 +1644,11 @@ def html_table(df, max_rows=60):
         for c in cols:
             v = r[c]
             txt = "" if v is None or (isinstance(v, float) and pd.isna(v)) else str(v)
-            tds += f"<td style='border:1px solid #e2e8f0;padding:6px 10px;color:#334155;font-size:12px'>{_esc(txt)}</td>"
+            tds += f"<td style='border:1px solid #e5e7eb;padding:6px 10px;color:#1f2937;font-size:12px'>{_esc(txt)}</td>"
         body += f"<tr style='background:{bg}'>{tds}</tr>"
-    more = (f"<div style='color:#64748b;font-size:12px;padding:6px 2px'>"
+    more = (f"<div style='color:#4b5563;font-size:12px;padding:6px 2px'>"
             f"仅显示前 {max_rows} 行，共 {len(df)} 行——导出 CSV 可查看全部</div>" if len(df) > max_rows else "")
-    return (f"<div style='overflow-x:auto;border:1px solid #e2e8f0;border-radius:8px;background:#ffffff'>"
+    return (f"<div style='overflow-x:auto;border:1px solid #e5e7eb;border-radius:8px;background:#ffffff'>"
             f"<table style='border-collapse:collapse;width:100%'><thead><tr>{head}</tr></thead>"
             f"<tbody>{body}</tbody></table>{more}</div>")
 
@@ -1937,11 +1937,11 @@ def render_home():
     cols = st.columns(5)
     for col, (name, span, desc) in zip(cols, phase_cards):
         col.markdown(
-            f"<div style='background:#ffffff;border:1px solid #e2e8f0;border-radius:10px;"
+            f"<div style='background:#ffffff;border:1px solid #e5e7eb;border-radius:10px;"
             f"padding:12px 10px;min-height:120px'>"
             f"<div style='font-weight:700;color:#2563eb'>{name}</div>"
             f"<div style='font-size:12px;color:#2563eb;margin:4px 0'>{span}</div>"
-            f"<div style='font-size:12px;color:#64748b;line-height:1.6'>{desc}</div></div>",
+            f"<div style='font-size:12px;color:#4b5563;line-height:1.6'>{desc}</div></div>",
             unsafe_allow_html=True,
         )
     # 3. 逻辑主线（参考版面：先打底子、再显性化后果的两行说明 + 四流耦合图）
@@ -1955,19 +1955,19 @@ def render_home():
     st.markdown("### ⚖️ 对抗与结算机制")
     mc1, mc2, mc3 = st.columns(3)
     mc1.markdown(
-        "<div style='background:#ffffff;border:1px solid #e2e8f0;border-radius:10px;padding:12px 14px;min-height:104px'>"
+        "<div style='background:#ffffff;border:1px solid #e5e7eb;border-radius:10px;padding:12px 14px;min-height:104px'>"
         "<div style='font-weight:700;color:#2563eb'>双角色对抗</div>"
-        "<div style='font-size:12px;color:#64748b;margin-top:6px;line-height:1.6'>财务总监 vs 税务稽查，同一证据包两种视角；"
+        "<div style='font-size:12px;color:#4b5563;margin-top:6px;line-height:1.6'>财务总监 vs 税务稽查，同一证据包两种视角；"
         "S13 切入稽查取证 → S14 财务抗辩 → S15 定性结算。</div></div>", unsafe_allow_html=True)
     mc2.markdown(
-        "<div style='background:#ffffff;border:1px solid #e2e8f0;border-radius:10px;padding:12px 14px;min-height:104px'>"
+        "<div style='background:#ffffff;border:1px solid #e5e7eb;border-radius:10px;padding:12px 14px;min-height:104px'>"
         "<div style='font-weight:700;color:#2563eb'>定性三档</div>"
-        "<div style='font-size:12px;color:#64748b;margin-top:6px;line-height:1.6'>无问题 / 一般违规 / 偷税——规则引擎"
+        "<div style='font-size:12px;color:#4b5563;margin-top:6px;line-height:1.6'>无问题 / 一般违规 / 偷税——规则引擎"
         "（关键词 + 负面词过滤 + 教师兜底）+ 参数扰动种子推演。</div></div>", unsafe_allow_html=True)
     mc3.markdown(
-        "<div style='background:#ffffff;border:1px solid #e2e8f0;border-radius:10px;padding:12px 14px;min-height:104px'>"
+        "<div style='background:#ffffff;border:1px solid #e5e7eb;border-radius:10px;padding:12px 14px;min-height:104px'>"
         "<div style='font-weight:700;color:#2563eb'>成绩构成</div>"
-        "<div style='font-size:12px;color:#64748b;margin-top:6px;line-height:1.6'>操作 60%（19 步 173 分）+ "
+        "<div style='font-size:12px;color:#4b5563;margin-top:6px;line-height:1.6'>操作 60%（19 步 173 分）+ "
         "报告理论 30% + 综合 10%；稽查风险与纳税信用双向联动。</div></div>", unsafe_allow_html=True)
     # 5. 实验介绍（参考版面：折叠项——教学目标 / 原理 / 过程与方法 / 必读）
     st.markdown("### 📖 实验介绍（教学目标 · 原理 · 过程与方法）")
@@ -2036,7 +2036,7 @@ def main():
         render_result_card()
         return
     # 独立步骤页（决策台 S2—S15，侧边栏导航进入）
-    st.markdown(f"<div style='font-size:12px;color:#64748b;margin-bottom:4px'>金税四期下“业—票—税—信”虚仿实验 · "
+    st.markdown(f"<div style='font-size:12px;color:#4b5563;margin-bottom:4px'>金税四期下“业—票—税—信”虚仿实验 · "
                 f"步骤 {cur}/15 · 测评环节</div>", unsafe_allow_html=True)
     if cur >= 3 and not quiz_passed():
         st.warning("S2 税制理论快测尚未达标（≥3 分）——S3—S15 已锁定，请先返回 S2 完成快测并重测达标。")
@@ -2047,7 +2047,7 @@ def main():
     # V1.10.3 操作结果卡片：显示在步骤内容末尾（提交按钮正下方），提交后立即可见
     render_result_card()
     render_step_nav(cur)
-    st.markdown(f"<div style='margin-top:14px;color:#64748b;font-size:12px'>—— {APP_VERSION} ｜ "
+    st.markdown(f"<div style='margin-top:14px;color:#4b5563;font-size:12px'>—— {APP_VERSION} ｜ "
                 f"金税四期下“业—票—税—信”多源异构数据耦合推演与合规裁量虚拟仿真实验 ——</div>",
                 unsafe_allow_html=True)
 
