@@ -2007,11 +2007,11 @@ def main():
     init_state()
     st.set_page_config(page_title="金税四期·业票税信虚仿实验", page_icon="🧾", layout="wide")
     st.markdown(UI_CSS, unsafe_allow_html=True)
-    # V1.10.3 操作结果卡片（提交后展示对错、当前状态与下一步建议，非弹窗）
-    render_result_card()
     # V1.10 学生实名门控：未注册（且未走教师端免注册入口）时只见注册页
     if not st.session_state.get("student_registered") and not st.session_state.get("gate_bypass"):
         render_register_gate()
+        # V1.10.3 操作结果卡片（注册成功/失败，显示在表单下方，非弹窗）
+        render_result_card()
         return
     render_top_nav()
     render_sidebar()
@@ -2021,15 +2021,19 @@ def main():
         cur = 1
     if cur == 99:
         render_summary()
+        render_result_card()
         return
     if cur == 88:
         render_review()
+        render_result_card()
         return
     if cur == 77:
         render_teacher()
+        render_result_card()
         return
     if cur == 1:
         render_home()
+        render_result_card()
         return
     # 独立步骤页（决策台 S2—S15，侧边栏导航进入）
     st.markdown(f"<div style='font-size:12px;color:#94a3b8;margin-bottom:4px'>金税四期下“业—票—税—信”虚仿实验 · "
@@ -2040,6 +2044,8 @@ def main():
                  8: render_s8, 9: render_s9, 10: render_s10, 11: render_s11, 12: render_s12,
                  13: render_s13, 14: render_s14, 15: render_s15}
     renderers.get(cur, render_home)()
+    # V1.10.3 操作结果卡片：显示在步骤内容末尾（提交按钮正下方），提交后立即可见
+    render_result_card()
     render_step_nav(cur)
     st.markdown(f"<div style='margin-top:14px;color:#94a3b8;font-size:12px'>—— {APP_VERSION} ｜ "
                 f"金税四期下“业—票—税—信”多源异构数据耦合推演与合规裁量虚拟仿真实验 ——</div>",
