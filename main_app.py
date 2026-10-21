@@ -916,15 +916,21 @@ def render_s2():
                               key=f"s2_q{i}", index=None, horizontal=True)
         st.caption(f"📌 {item['tip']}")
     if st.button("提交快测", key="s2_submit", type="primary"):
+        unanswered = [i for i in range(len(QUIZ_S2)) if answers.get(i) is None]
+        if unanswered:
+            st.warning("还有 " + "、".join(f"第 {i+1} 题" for i in unanswered) +
+                       " 未作答。请完成全部 5 题后再提交——未作答的题目不会显示答案，"
+                       "也无法计分。")
+            return
         score = sum(1 for i, item in enumerate(QUIZ_S2)
-                    if answers.get(i) is not None and answers[i] == item["options"][item["ans"]])
+                    if answers[i] == item["options"][item["ans"]])
         setv("quiz_score", score)
         setv("quiz_attempt", get("quiz_attempt", 0) + 1)
         if score < 3:
             setv("quiz_done", False)
             st.error(f"得分 {score}/5，低于 3 分：弹出 10 秒错题提示后可立即重测。")
             wrong = [i for i, item in enumerate(QUIZ_S2)
-                     if answers.get(i) is None or answers[i] != item["options"][item["ans"]]]
+                     if answers[i] != item["options"][item["ans"]]]
             if wrong:
                 st.info("错题提示：" + "；".join(f"第 {i+1} 题【{QUIZ_S2[i]['q']}】正确答案："
                                                 f"{QUIZ_S2[i]['options'][QUIZ_S2[i]['ans']]}" for i in wrong))
