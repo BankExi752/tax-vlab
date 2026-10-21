@@ -1,7 +1,1 @@
-__pycache__/
-*.pyc
-.streamlit/
-.DS_Store
-st_stdout.txt
-st_stderr.txt
-apptest_err.txt
+﻿data/

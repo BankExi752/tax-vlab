@@ -15,12 +15,15 @@ Streamlit 教学应用 V1.0（2026 中国仿真创新应用大赛 · 仿真教�
 """
 import hashlib
 import html as _html
+import os
 import re
+import threading
+import time
 
 import pandas as pd
 import streamlit as st
 
-APP_VERSION = "V1.8"
+APP_VERSION = "V1.10"
 
 # ============================================================================
 # 一、常量与元数据（与计划书 V5.2 严格对齐）
@@ -101,10 +104,38 @@ SIDEBAR_CSS = """
 </style>
 """
 
-# 全局 UI 生动化：主题色（税务蓝）+ 按钮动画 + 多选卡片化 + 悬停反馈
+# 全局暗色仪表盘样式（深色底 #0F172A + 亮蓝主色 #2563EB + 顶部 Tab 导航）
 UI_CSS = """
 <style>
-/* 按钮：浮起 + 阴影 + 按压回弹动画 */
+/* ===== 深色基调 ===== */
+html, body, [data-testid="stAppViewContainer"], .stApp {
+  background: #0f172a !important;
+}
+[data-testid="stHeader"] { background: rgba(15, 23, 42, .9) !important; }
+[data-testid="stSidebar"] {
+  background: #0b1220 !important;
+  border-right: 1px solid #1e3a5f !important;
+}
+[data-testid="stAppViewContainer"] > .main .block-container { padding-top: 1.2rem; }
+h1, h2, h3, h4, h5 { color: #e2e8f0 !important; }
+p, li, [data-testid="stMarkdownContainer"] p { color: #cbd5e1 !important; }
+[data-testid="stCaptionContainer"] p, [data-testid="stCaptionContainer"] {
+  color: #94a3b8 !important; }
+/* 输入控件深色化 */
+[data-testid="stNumberInput"] input, [data-testid="stTextInput"] input,
+[data-testid="stTextArea"] textarea, [data-testid="stSelectbox"] button,
+[data-testid="stDateInput"] input {
+  background: #16213a !important; color: #e2e8f0 !important;
+  border-color: #334155 !important;
+}
+[data-testid="stNumberInput"] input:focus, [data-testid="stTextInput"] input:focus {
+  border-color: #2563eb !important; box-shadow: 0 0 0 1px #2563eb !important;
+}
+/* radio 标签 */
+[data-testid="stRadio"] label, [data-testid="stCheckbox"] label { color: #cbd5e1 !important; }
+[data-testid="stRadio"] div[role="radiogroup"] label:hover, [data-testid="stCheckbox"] label:hover {
+  color: #38bdf8 !important; }
+/* ===== 按钮：浮起 + 阴影 + 按压回弹 ===== */
 div.stButton > button, [data-testid="stBaseButton-secondary"],
 [data-testid="stBaseButton-primary"] {
   transition: transform .18s ease, box-shadow .18s ease, filter .18s ease !important;
@@ -112,34 +143,222 @@ div.stButton > button, [data-testid="stBaseButton-secondary"],
 div.stButton > button:hover, [data-testid="stBaseButton-secondary"]:hover,
 [data-testid="stBaseButton-primary"]:hover {
   transform: translateY(-2px) !important;
-  box-shadow: 0 6px 16px rgba(18, 165, 148, .28) !important;
-  filter: brightness(1.03);
+  box-shadow: 0 6px 16px rgba(37, 99, 235, .35) !important;
+  filter: brightness(1.06);
 }
 div.stButton > button:active, [data-testid="stBaseButton-secondary"]:active,
 [data-testid="stBaseButton-primary"]:active {
   transform: translateY(0) scale(.97) !important;
-  box-shadow: 0 2px 6px rgba(18, 165, 148, .2) !important;
+  box-shadow: 0 2px 6px rgba(37, 99, 235, .25) !important;
 }
+/* ===== 顶部导航：Tab 按钮组（选中=渐变亮蓝 primary，未选=深色描边 secondary） ===== */
+[data-testid="stBaseButton-secondary"] {
+  background: #16213a !important; color: #94a3b8 !important;
+  border: 1px solid #334155 !important;
+  border-radius: 8px !important;
+  font-weight: 600 !important; letter-spacing: .5px !important;
+}
+[data-testid="stBaseButton-secondary"]:hover { border-color: #2563eb !important; color: #38bdf8 !important; }
 [data-testid="stBaseButton-primary"] {
-  background: linear-gradient(120deg, #0e5f56, #12a594) !important;
+  background: linear-gradient(120deg, #1e40af, #2563eb) !important;
   color: #fff !important;
+  border-radius: 8px !important;
+  font-weight: 700 !important; letter-spacing: .5px !important;
+  box-shadow: 0 2px 10px rgba(37, 99, 235, .4) !important;
 }
 [data-testid="stBaseButton-primary"]:hover {
-  background: linear-gradient(120deg, #0b4f47, #0ea58f) !important;
+  background: linear-gradient(120deg, #1d4ed8, #3b82f6) !important;
 }
-/* 复选框：卡片化悬停反馈 */
+/* ===== 复选框：卡片化悬停 ===== */
 [data-testid="stCheckbox"] { transition: background .15s ease, border-color .15s ease !important; }
 [data-testid="stCheckbox"]:hover {
-  background: #e6f7f2 !important;
+  background: #16213a !important;
+  border: 1px solid #2563eb !important;
   border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(18, 165, 148, .15);
+  box-shadow: 0 2px 8px rgba(37, 99, 235, .2);
 }
 [data-testid="stCheckbox"] label { cursor: pointer; }
-/* 指标卡数值强调 */
-[data-testid="stMetricValue"] { font-weight: 700 !important; }
-[data-testid="stMetricLabel"] { color: #5a6b85 !important; }
+/* ===== 指标卡 ===== */
+[data-testid="stMetricValue"] { font-weight: 700 !important; color: #38bdf8 !important; }
+[data-testid="stMetricLabel"] { color: #94a3b8 !important; }
+[data-testid="stMetric"] { background: #16213a !important; border: 1px solid #1e3a5f !important;
+  border-radius: 8px; padding: .5rem .7rem; }
+/* ===== 进度条 / 信息框 ===== */
+[data-testid="stProgress"] > div > div > div > div { background: #2563eb !important; }
+[data-testid="stInfo"] { background: #12233f !important; color: #93c5fd !important; border-color: #2563eb !important; }
+[data-testid="stSuccess"] { background: #0d2b1f !important; color: #86efac !important; border-color: #16a34a !important; }
+[data-testid="stWarning"] { background: #2b2110 !important; color: #fcd34d !important; border-color: #d97706 !important; }
+[data-testid="stError"] { background: #2b1316 !important; color: #fca5a5 !important; border-color: #dc2626 !important; }
+[data-testid="stExpander"] { background: #16213a !important; border: 1px solid #1e3a5f !important;
+  border-radius: 8px !important; }
+[data-testid="stExpander"] summary { color: #cbd5e1 !important; }
+/* ===== 分割线 ===== */
+[data-testid="stDivider"] hr { background: #1e3a5f !important; }
 </style>
 """
+
+# ============================================================================
+# 零、用户管理与操作留痕（V1.10：学生实名门控 + 教师端后台 + 学生自导出）
+# ============================================================================
+# 数据落应用同级 data/ 目录（students.csv / logs.csv / assessments.csv）。
+# 本地形态：学生自行导出存档；部署形态：云端实例共享 data/，教师在线查看与导出。
+DATA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
+_io_lock = threading.Lock()
+TEACHER_PASS = "tax2026"   # 教师端口令（部署后建议在界面提示修改）
+
+
+def _esc(x):
+    return _html.escape(str(x))
+
+
+def _append_csv(name, row, header=None):
+    os.makedirs(DATA_DIR, exist_ok=True)
+    path = os.path.join(DATA_DIR, name)
+    with _io_lock:
+        new = not os.path.exists(path)
+        with open(path, "a", encoding="utf-8-sig", newline="") as f:
+            if new and header:
+                f.write(",".join(header) + "\n")
+            f.write(",".join(row) + "\n")
+
+
+def _read_csv(name):
+    path = os.path.join(DATA_DIR, name)
+    if not os.path.exists(path):
+        return []
+    with _io_lock:
+        try:
+            df = pd.read_csv(path, dtype=str)
+            return df.to_dict("records")
+        except Exception:
+            return []
+
+
+def save_student(klass, sid, name):
+    """学生注册落库；同班同学号返回 False（防顶替）。"""
+    rows = _read_csv("students.csv")
+    for r in rows:
+        if str(r.get("班级", "")).strip() == str(klass).strip() and \
+           str(r.get("学号", "")).strip() == str(sid).strip():
+            return False
+    _append_csv("students.csv", [klass, sid, name, time.strftime("%Y-%m-%d %H:%M:%S")],
+                ["班级", "学号", "姓名", "注册时间"])
+    append_log("注册", f"班级 {klass} · 学号 {sid} · 姓名 {name}")
+    return True
+
+
+def student_exists(klass, sid):
+    rows = _read_csv("students.csv")
+    for r in rows:
+        if str(r.get("班级", "")).strip() == str(klass).strip() and \
+           str(r.get("学号", "")).strip() == str(sid).strip():
+            return True
+    return False
+
+
+def append_log(action, detail, step=None, score=None, risk=None, credit=None, outcome=None):
+    """操作留痕：每步提交/撤销/注册均写入 data/logs.csv。"""
+    s = st.session_state
+    try:
+        stu = s.get("student", {})
+        sid = str(stu.get("学号", ""))
+        name = str(stu.get("姓名", ""))
+        klass = str(stu.get("班级", ""))
+    except Exception:
+        sid = name = klass = ""
+    sc = "" if score is None else str(score)
+    _append_csv("logs.csv", [
+        time.strftime("%Y-%m-%d %H:%M:%S"), str(klass), str(sid), str(name),
+        str(action), str(detail),
+        "" if step is None else str(step), sc,
+        "" if risk is None else str(risk), "" if credit is None else str(credit),
+        "" if outcome is None else str(outcome),
+    ], ["时间", "班级", "学号", "姓名", "操作", "详情", "步骤", "得分", "稽查风险", "纳税信用", "定性"])
+
+
+def aggregate_student(klass, sid):
+    """从日志聚合单个学生的成绩档案（每步最新得分 → 总得分 → 百分制）。"""
+    rows = [r for r in _read_csv("logs.csv")
+            if str(r.get("班级", "")).strip() == str(klass).strip()
+            and str(r.get("学号", "")).strip() == str(sid).strip()]
+    steps = {}
+    risk, credit, outcome = "", "", ""
+    last = ""
+    for r in rows:
+        if r.get("步骤") and str(r["步骤"]).strip().isdigit():
+            n = int(str(r["步骤"]).strip())
+            raw = str(r.get("得分", "")).strip()
+            try:
+                steps[n] = float(raw.split("/")[0]) if raw else steps.get(n, 0.0)
+            except ValueError:
+                pass
+        if r.get("时间"):
+            last = r["时间"]
+        if r.get("稽查风险") not in ("", None):
+            risk = r["稽查风险"]
+        if r.get("纳税信用") not in ("", None):
+            credit = r["纳税信用"]
+        if r.get("定性") not in ("", None):
+            outcome = r["定性"]
+    total = 0.0
+    for sc in steps.values():
+        try:
+            total += float(sc)
+        except ValueError:
+            pass
+    full = 173
+    final = round(total / full * 100 * 0.6 + (total / full * 100) * 0.3 + 90 * 0.1) if total else 0
+    return {"班级": klass, "学号": sid, "姓名": _reg_name(klass, sid),
+            "注册时间": _reg_time(klass, sid), "完成步数": len(steps),
+            "总得分": total, "成绩(百分制)": final, "定性": outcome or "未结算",
+            "稽查风险": risk or "0", "纳税信用": credit or "100", "最后活动": last}
+
+
+def _reg_name(klass, sid):
+    for r in _read_csv("students.csv"):
+        if str(r.get("班级", "")).strip() == str(klass).strip() and \
+           str(r.get("学号", "")).strip() == str(sid).strip():
+            return str(r.get("姓名", ""))
+    return ""
+
+
+def _reg_time(klass, sid):
+    for r in _read_csv("students.csv"):
+        if str(r.get("班级", "")).strip() == str(klass).strip() and \
+           str(r.get("学号", "")).strip() == str(sid).strip():
+            return str(r.get("注册时间", ""))
+    return ""
+
+
+def export_scores_df(klass=None):
+    """教师端成绩表：每个学生一行（按班级过滤可选）。"""
+    stus = _read_csv("students.csv")
+    recs = []
+    for r in stus:
+        k, sid = str(r.get("班级", "")).strip(), str(r.get("学号", "")).strip()
+        if klass and klass != "全部班级" and k != klass:
+            continue
+        recs.append(aggregate_student(k, sid))
+    df = pd.DataFrame(recs, columns=["班级", "学号", "姓名", "注册时间", "完成步数",
+                                     "总得分", "成绩(百分制)", "定性", "稽查风险",
+                                     "纳税信用", "最后活动"])
+    return df.sort_values(["班级", "学号"]).reset_index(drop=True)
+
+
+def save_assessment(klass, sid, comment):
+    rows = _read_csv("assessments.csv")
+    for i, r in enumerate(rows):
+        if str(r.get("班级", "")).strip() == str(klass).strip() and \
+           str(r.get("学号", "")).strip() == str(sid).strip():
+            rows[i]["评语"] = comment
+            rows[i]["评估时间"] = time.strftime("%Y-%m-%d %H:%M:%S")
+            break
+    else:
+        rows.append({"班级": klass, "学号": sid, "评语": comment,
+                     "评估时间": time.strftime("%Y-%m-%d %H:%M:%S")})
+    path = os.path.join(DATA_DIR, "assessments.csv")
+    with _io_lock:
+        pd.DataFrame(rows).to_csv(path, index=False, encoding="utf-8-sig")
 
 # 案例数据包（计划书第八章，金额单位：万元，另有注明者除外）
 CASES = {
@@ -377,16 +596,16 @@ def radar_svg(values, labels, title="税负雷达图", size=320):
              f'xmlns="http://www.w3.org/2000/svg" style="font-family:sans-serif;font-size:11px;display:block;max-width:100%">']
     for ring in (25, 50, 75, 100):
         pts = " ".join(f"{pt(i, ring/100)[0]:.1f},{pt(i, ring/100)[1]:.1f}" for i in range(n))
-        parts.append(f'<polygon points="{pts}" fill="none" stroke="#d8dee9" stroke-width="1"/>')
+        parts.append(f'<polygon points="{pts}" fill="none" stroke="#334155" stroke-width="1"/>')
     for i in range(n):
         x, y = pt(i, 1)
-        parts.append(f'<line x1="{cx}" y1="{cy}" x2="{x:.1f}" y2="{y:.1f}" stroke="#d8dee9" stroke-width="1"/>')
+        parts.append(f'<line x1="{cx}" y1="{cy}" x2="{x:.1f}" y2="{y:.1f}" stroke="#334155" stroke-width="1"/>')
         lx, ly = pt(i, 1.28)
         parts.append(f'<text x="{lx:.1f}" y="{ly:.1f}" text-anchor="middle">{_esc(labels[i])}</text>')
     pts = " ".join(f"{pt(i, max(0, min(100, values[i]))/100)[0]:.1f},{pt(i, max(0, min(100, values[i]))/100)[1]:.1f}"
                    for i in range(n))
-    parts.append(f'<polygon points="{pts}" fill="rgba(31,119,180,0.35)" stroke="#0f766e" stroke-width="2"/>')
-    parts.append(f'<text x="{size/2}" y="{size-6}" text-anchor="middle" font-size="12" fill="#333">{_esc(title)}</text>')
+    parts.append(f'<polygon points="{pts}" fill="rgba(37,99,235,0.38)" stroke="#2563eb" stroke-width="2"/>')
+    parts.append(f'<text x="{size/2}" y="{size-6}" text-anchor="middle" font-size="12" fill="#e2e8f0">{_esc(title)}</text>')
     parts.append("</svg>")
     return "".join(parts)
 
@@ -399,7 +618,7 @@ def gauge_svg(value, max_value, label, unit="%", size=240, warn_low=0, warn_high
     cx, cy, r = size / 2, size * 0.72, size * 0.30
     parts = [f'<svg width="100%" height="auto" viewBox="0 0 {size} {int(size*0.62)}" preserveAspectRatio="xMidYMid meet" '
              f'xmlns="http://www.w3.org/2000/svg" style="font-family:sans-serif;display:block;max-width:100%">']
-    parts.append(f'<path d="M {cx-r},{cy} A {r},{r} 0 0 1 {cx+r},{cy}" fill="none" stroke="#e5e9f0" stroke-width="14"/>')
+    parts.append(f'<path d="M {cx-r},{cy} A {r},{r} 0 0 1 {cx+r},{cy}" fill="none" stroke="#1e3a5f" stroke-width="14"/>')
     if warn_high > 0:
         # 预警区（红段）
         wa = 180 + (warn_high / max_value) * 180
@@ -407,10 +626,10 @@ def gauge_svg(value, max_value, label, unit="%", size=240, warn_low=0, warn_high
                      f'stroke-width="14" stroke-dasharray="{(cx+r-(cx-r))*3.14159*(warn_high/max_value)*0.5} 10000"/>')
     ang = math.radians(angle)
     nx, ny = cx + r * 0.82 * math.cos(ang), cy + r * 0.82 * math.sin(ang)
-    parts.append(f'<line x1="{cx}" y1="{cy}" x2="{nx:.1f}" y2="{ny:.1f}" stroke="#0f766e" stroke-width="3"/>')
-    parts.append(f'<circle cx="{cx}" cy="{cy}" r="5" fill="#0f766e"/>')
-    parts.append(f'<text x="{cx}" y="{cy+30}" text-anchor="middle" font-size="22" font-weight="bold" fill="#333">{value}</text>')
-    parts.append(f'<text x="{cx}" y="{cy+48}" text-anchor="middle" font-size="12" fill="#666">{_esc(label)}（{unit}）</text>')
+    parts.append(f'<line x1="{cx}" y1="{cy}" x2="{nx:.1f}" y2="{ny:.1f}" stroke="#2563eb" stroke-width="3"/>')
+    parts.append(f'<circle cx="{cx}" cy="{cy}" r="5" fill="#2563eb"/>')
+    parts.append(f'<text x="{cx}" y="{cy+30}" text-anchor="middle" font-size="22" font-weight="bold" fill="#38bdf8">{value}</text>')
+    parts.append(f'<text x="{cx}" y="{cy+48}" text-anchor="middle" font-size="12" fill="#94a3b8">{_esc(label)}（{unit}）</text>')
     parts.append("</svg>")
     return "".join(parts)
 
@@ -427,7 +646,7 @@ def risk_bar_svg(risk_points, size=520):
     parts.append(seg(int(w*0.6), int(w*0.85), "#faad14"))
     parts.append(seg(int(w*0.85), w, "#ff4d4f"))
     parts.append(f'<rect x="{int(w*pct/100)-2}" y="-4" width="4" height="{h+8}" fill="#111" rx="2"/>')
-    parts.append(f'<text x="{w-8}" y="{h+15}" text-anchor="end" font-size="12" fill="#666">稽查风险值 {pct}/100</text>')
+    parts.append(f'<text x="{w-8}" y="{h+15}" text-anchor="end" font-size="12" fill="#94a3b8">稽查风险值 {pct}/100</text>')
     parts.append("</svg>")
     return "".join(parts)
 
@@ -436,18 +655,18 @@ def flows_svg(size=760):
     """业—票—税—信 四流耦合示意图。"""
     w, h = size, 190
     nodes = [
-        ("业务流", "采购 / 销售 / 捐赠 / 薪酬", 40, 60, "#0f766e"),
-        ("票据流", "数电票 / 异常凭证 / P 指标", 220, 60, "#2ca02c"),
-        ("税款流", "增值税 / 消费税 / 企税 / 个税", 400, 60, "#ff7f0e"),
-        ("信用流", "纳税信用 / 风险条 / 定性裁量", 580, 60, "#d62728"),
+        ("业务流", "采购 / 销售 / 捐赠 / 薪酬", 40, 60, "#2563eb"),
+        ("票据流", "数电票 / 异常凭证 / P 指标", 220, 60, "#3b82f6"),
+        ("税款流", "增值税 / 消费税 / 企税 / 个税", 400, 60, "#38bdf8"),
+        ("信用流", "纳税信用 / 风险条 / 定性裁量", 580, 60, "#4f46e5"),
     ]
     parts = [f'<svg width="100%" height="auto" viewBox="0 0 {w} {h}" preserveAspectRatio="xMidYMid meet" '
              f'xmlns="http://www.w3.org/2000/svg" style="font-family:sans-serif;display:block;max-width:100%">']
     for i in range(len(nodes) - 1):
         x1 = nodes[i][2] + 150
-        parts.append(f'<line x1="{x1}" y1="90" x2="{nodes[i+1][2]}" y2="90" stroke="#bbb" stroke-width="2" '
+        parts.append(f'<line x1="{x1}" y1="90" x2="{nodes[i+1][2]}" y2="90" stroke="#3b82f6" stroke-width="2" '
                      f'stroke-dasharray="6 4"/>')
-        parts.append(f'<text x="{(x1+nodes[i+1][2])/2}" y="82" text-anchor="middle" font-size="10" fill="#888">耦合推演</text>')
+        parts.append(f'<text x="{(x1+nodes[i+1][2])/2}" y="82" text-anchor="middle" font-size="10" fill="#60a5fa">耦合推演</text>')
     for name, sub, x, y, color in nodes:
         parts.append(f'<rect x="{x}" y="{y}" width="150" height="60" rx="8" fill="{color}" opacity="0.92"/>')
         parts.append(f'<text x="{x+75}" y="{y+26}" text-anchor="middle" fill="#fff" font-size="14" font-weight="bold">{_esc(name)}</text>')
@@ -474,6 +693,8 @@ DEFAULT_STATE = {
     "outcome": "", "outcome_note": "", "s19_filled": False,
     "report_html": "", "final_score": None, "role_swap_used": False,
     "undo_stack": [], "action_plan": {},
+    "student_registered": False, "student": {}, "gate_bypass": False,
+    "teacher_authed": False,
 }
 
 
@@ -542,10 +763,10 @@ def step_header(n):
         return
     _, name, mins, full, stype = meta
     st.markdown(
-        f'<div style="background:#f0f8f5;border:1px solid #bfe8df;border-left:4px solid #0f766e;'
+        f'<div style="background:#16213a;border:1px solid #1e3a5f;border-left:4px solid #2563eb;'
         f'border-radius:6px;padding:10px 14px;margin-bottom:8px">'
-        f'<span style="font-size:17px;font-weight:700;color:#0e5f56">S{n} · {_esc(name)}</span>'
-        f'<div style="font-size:12px;color:#5a6b85;margin-top:4px">'
+        f'<span style="font-size:17px;font-weight:700;color:#38bdf8">S{n} · {_esc(name)}</span>'
+        f'<div style="font-size:12px;color:#94a3b8;margin-top:4px">'
         f'合理用时：{mins} 分钟 ｜ 满分：{full} 分 ｜ 成绩类型：{stype}</div></div>',
         unsafe_allow_html=True,
     )
@@ -559,7 +780,7 @@ def score_badge(n, score=None):
     full = step_title(n)[3]
     got = score if score is not None else st.session_state.get("scores", {}).get(n)
     if got is None:
-        return f'<span style="color:#999;font-size:12px">未完成（满分 {full} 分）</span>'
+        return f'<span style="color:#94a3b8;font-size:12px">未完成（满分 {full} 分）</span>'
     color = "#52c41a" if got >= full * 0.6 else "#faad14"
     return f'<span style="color:{color};font-weight:700;font-size:13px">已得分 {got:g} / {full} 分</span>'
 
@@ -584,6 +805,9 @@ def record(n, score, risk_add=0):
         s["action_plan"] = {}
     s["action_plan"][n] = (f"S{n} 已提交（{score:g}/{full}）——建议核对勾稽后进入下一步；"
                            f"失分可返回 S{n} 重试或交 S17 AI 提分辅导")
+    append_log(f"提交 S{n}", f"{s.get('case','')} · {step_title(n)[1]} 得分 {score:g}/{full} 分",
+               step=n, score=f"{score:g}/{full}",
+               risk=s["risk_points"], credit=s["credit_score"], outcome=s.get("outcome", ""))
 
 
 def undo_last():
@@ -614,6 +838,8 @@ def undo_last():
     s["final_score"] = None
     if "action_plan" in s and n in s["action_plan"]:
         del s["action_plan"][n]
+    append_log(f"撤销 S{n}", f"回滚得分 {rec['score']:g} 分与稽查风险至 {rec['risk_before']}",
+               step=n, risk=s["risk_points"], credit=s["credit_score"])
     return True
 
 
@@ -1153,6 +1379,37 @@ def render_review():
         st.markdown(heatmap_svg({"很容易": 8, "较容易": 20, "适中": 42, "较难": 22, "很难": 8}), unsafe_allow_html=True)
     st.divider()
 
+    # ---- 学生自导出（V1.10） ----
+    st.markdown("**📥 我的实验档案导出**（本地/未部署形态：导出后自行存档；部署形态：教师端后台可在线查看）")
+    stu = s.get("student", {})
+    sid = stu.get("学号", "")
+    klass = stu.get("班级", "")
+    my_scores = pd.DataFrame([aggregate_student(klass, sid)]) if sid else pd.DataFrame()
+    my_logs = [r for r in _read_csv("logs.csv")
+               if str(r.get("班级", "")).strip() == str(klass).strip()
+               and str(r.get("学号", "")).strip() == str(sid).strip()]
+    e1, e2, e3 = st.columns(3)
+    with e1:
+        st.download_button("📊 我的成绩档案（CSV）",
+                           my_scores.to_csv(index=False).encode("utf-8-sig"),
+                           file_name=f"{klass}_{sid}_成绩档案.csv", mime="text/csv",
+                           key="my_scores_csv")
+    with e2:
+        detail = pd.DataFrame(
+            [{"步骤": f"S{n}", "名称": step_title(n)[1],
+              "得分": s.get("scores", {}).get(n, 0), "满分": step_title(n)[3]}
+             for n, _, _, _, _ in STEPS])
+        st.download_button("📋 19 步得分明细（CSV）",
+                           detail.to_csv(index=False).encode("utf-8-sig"),
+                           file_name=f"{klass}_{sid}_得分明细.csv", mime="text/csv",
+                           key="my_detail_csv")
+    with e3:
+        st.download_button("🧾 我的操作日志（CSV）",
+                           pd.DataFrame(my_logs).to_csv(index=False).encode("utf-8-sig"),
+                           file_name=f"{klass}_{sid}_操作日志.csv", mime="text/csv",
+                           key="my_logs_csv")
+    st.divider()
+
     # ---- 窗格底部导航 ----
     c1, c2, c3 = st.columns([1, 2, 1])
     with c1:
@@ -1195,24 +1452,24 @@ def build_report_html(final=False):
     final = calc_final_score(step_sc, report_sc, 90) if final else None
     setv("final_score", final)
     html = f"""
-    <div style="font-family:'Microsoft YaHei',sans-serif;border:1px solid #bfe8df;border-radius:10px;
-                padding:18px 22px;background:#fff">
-      <h3 style="margin:0 0 6px;color:#0e5f56">实验报告{'(最终版)' if final else '(草稿)'}</h3>
-      <div style="color:#5a6b85;font-size:13px;margin-bottom:10px">
+    <div style="font-family:'Microsoft YaHei',sans-serif;border:1px solid #1e3a5f;border-radius:10px;
+                padding:18px 22px;background:#16213a">
+      <h3 style="margin:0 0 6px;color:#38bdf8">实验报告{'(最终版)' if final else '(草稿)'}</h3>
+      <div style="color:#94a3b8;font-size:13px;margin-bottom:10px">
         案例企业：{_esc(s.get('case','—'))} ｜ 定性结果：{_esc(s.get('outcome','未结算'))}
          ｜ 完成步骤 {done}/19 ｜ 步骤得分 {step_sc:g}/173 ｜ 稽查风险值 {s['risk_points']}/100
          ｜ 纳税信用分 {s['credit_score']}</div>
       <table style="border-collapse:collapse;width:100%;font-size:13px">
-        <tr style="background:#f0f8f5"><th style="border:1px solid #bfe8df;padding:5px">步骤</th>
-        <th style="border:1px solid #bfe8df;padding:5px">名称</th>
-        <th style="border:1px solid #bfe8df;padding:5px">得分</th>
-        <th style="border:1px solid #bfe8df;padding:5px">满分</th></tr>{rows}
-        <tr style="background:#fbfaf5"><td colspan="2" style="border:1px solid #bfe8df;padding:5px;font-weight:700">合计</td>
-        <td style="border:1px solid #bfe8df;padding:5px;font-weight:700">{step_sc:g}</td>
-        <td style="border:1px solid #bfe8df;padding:5px;font-weight:700">173</td></tr>
+        <tr style="background:#1e293b"><th style="border:1px solid #1e3a5f;padding:5px">步骤</th>
+        <th style="border:1px solid #1e3a5f;padding:5px">名称</th>
+        <th style="border:1px solid #1e3a5f;padding:5px">得分</th>
+        <th style="border:1px solid #1e3a5f;padding:5px">满分</th></tr>{rows}
+        <tr style="background:#16213a"><td colspan="2" style="border:1px solid #1e3a5f;padding:5px;font-weight:700">合计</td>
+        <td style="border:1px solid #1e3a5f;padding:5px;font-weight:700">{step_sc:g}</td>
+        <td style="border:1px solid #1e3a5f;padding:5px;font-weight:700">173</td></tr>
       </table>
       <div style="margin-top:10px">{radar}</div>
-      <div style="font-size:13px;color:#0e5f56;margin-top:8px">实验成绩（百分制）=
+      <div style="font-size:13px;color:#38bdf8;margin-top:8px">实验成绩（百分制）=
         操作 {step_sc}/173×100×60% + 报告与理论 {report_sc}×30% + 综合 90×10% =
         {calc_final_score(step_sc, report_sc, 90)} 分</div>
     </div>"""
@@ -1238,9 +1495,9 @@ def heatmap_svg(dist):
     for i, (k, v) in enumerate(dist.items()):
         w = int(480 * v / total)
         rows.append(
-            f'<text x="8" y="{28 + i*30}" font-size="12" fill="#555">{_esc(k)}</text>'
+            f'<text x="8" y="{28 + i*30}" font-size="12" fill="#94a3b8">{_esc(k)}</text>'
             f'<rect x="110" y="{20 + i*30}" width="{w}" height="18" rx="4" fill="{colors[i]}"/>'
-            f'<text x="{118 + w}" y="{33 + i*30}" font-size="12" fill="#333">{v}%</text>')
+            f'<text x="{118 + w}" y="{33 + i*30}" font-size="12" fill="#e2e8f0">{v}%</text>')
     return (f'<svg width="100%" height="auto" viewBox="0 0 600 150" preserveAspectRatio="xMidYMid meet" '
             f'xmlns="http://www.w3.org/2000/svg" style="font-family:sans-serif;display:block;max-width:100%">{"".join(rows)}</svg>')
 
@@ -1253,7 +1510,7 @@ def render_summary():
     comp = 90          # 综合考核（演示环境默认 90，无独立交互步骤）
     final = calc_final_score(step_sc, report_sc, comp)
     setv("final_score", final)
-    st.markdown(f"<h2 style='color:#0e5f56'>实验结算</h2>", unsafe_allow_html=True)
+    st.markdown(f"<h2 style='color:#38bdf8'>实验结算</h2>", unsafe_allow_html=True)
     c1, c2, c3, c4 = st.columns(4)
     c1.metric("步骤得分", f"{step_sc:g} / 173")
     c2.metric("实验成绩（百分制）", f"{final} 分")
@@ -1274,17 +1531,163 @@ def render_summary():
 # 七、主流程
 # ============================================================================
 
+def html_table(df, max_rows=60):
+    """深色 HTML 表格（替代 st.dataframe，避免 pyarrow 依赖，本地/云端均稳定渲染）。"""
+    if df is None or len(df) == 0:
+        return "<div style='color:#94a3b8;font-size:13px;padding:8px'>暂无数据</div>"
+    cols = list(df.columns)
+    head = "".join(f"<th style='border:1px solid #1e3a5f;padding:6px 10px;background:#1e293b;"
+                   f"color:#38bdf8;font-size:12px;text-align:left'>{_esc(c)}</th>" for c in cols)
+    body = ""
+    for i, (_, r) in enumerate(df.head(max_rows).iterrows()):
+        bg = "#16213a" if i % 2 == 0 else "#1a2438"
+        tds = ""
+        for c in cols:
+            v = r[c]
+            txt = "" if v is None or (isinstance(v, float) and pd.isna(v)) else str(v)
+            tds += f"<td style='border:1px solid #1e3a5f;padding:6px 10px;color:#e2e8f0;font-size:12px'>{_esc(txt)}</td>"
+        body += f"<tr style='background:{bg}'>{tds}</tr>"
+    more = (f"<div style='color:#64748b;font-size:12px;padding:6px 2px'>"
+            f"仅显示前 {max_rows} 行，共 {len(df)} 行——导出 CSV 可查看全部</div>" if len(df) > max_rows else "")
+    return (f"<div style='overflow-x:auto;border:1px solid #1e3a5f;border-radius:8px;background:#0f172a'>"
+            f"<table style='border-collapse:collapse;width:100%'><thead><tr>{head}</tr></thead>"
+            f"<tbody>{body}</tbody></table>{more}</div>")
+
+
+def render_register_gate():
+    """学生实名门控（V1.10）：班级/学号/姓名三项必填校验通过后才可进入实验。"""
+    st.markdown(
+        f"<div style='background:linear-gradient(120deg,#1e3a8a,#2563eb);border-radius:12px;"
+        f"padding:26px 30px;color:#fff'>"
+        f"<div style='font-size:12px;letter-spacing:2px;color:#93c5fd'>2026 中国仿真创新应用大赛 · 仿真教学创新设计方向</div>"
+        f"<h1 style='margin:8px 0 4px;font-size:24px;line-height:1.4;color:#fff'>金税四期·业票税信虚仿实验 {APP_VERSION}</h1>"
+        f"</div>", unsafe_allow_html=True)
+    st.markdown("**学生实名登录**：班级 / 学号 / 姓名 三项必填并校验通过后才能进入实验。")
+    st.info("本实验全程留痕：你的**每步操作（提交/撤销/结算）**都会写入操作日志，成绩由系统自动评定；"
+            "教师端可按班级查看记录、评估与导出成绩。本地/未部署形态支持学生自行导出成绩档案与日志。")
+    klass = st.text_input("班级（必填，如：财务2301）", key="reg_class")
+    sid = st.text_input("学号（必填）", key="reg_sid")
+    name = st.text_input("姓名（必填）", key="reg_name")
+    if st.button("✅ 进入实验", key="reg_enter", width="stretch", type="primary"):
+        err = []
+        if not klass.strip():
+            err.append("班级不能为空")
+        if not sid.strip() or len(sid.strip()) < 4:
+            err.append("学号不能为空且不少于 4 位")
+        if not name.strip():
+            err.append("姓名不能为空")
+        if err:
+            st.warning("；".join(err) + "，请补全后再进入实验。")
+        else:
+            existed = _read_csv("students.csv")
+            hit = [r for r in existed
+                   if str(r.get("班级", "")).strip() == klass.strip()
+                   and str(r.get("学号", "")).strip() == sid.strip()]
+            if hit:
+                st.error(f"该学号已注册（班级 {klass.strip()} · {sid.strip()} · 姓名 {hit[0].get('姓名','')}）。"
+                         "如非本人，请联系教师处理；本人误操作请核对学号。")
+            else:
+                save_student(klass.strip(), sid.strip(), name.strip())
+                setv("student_registered", True)
+                setv("student", {"班级": klass.strip(), "学号": sid.strip(), "姓名": name.strip()})
+                setv("current_step", 1)
+                st.rerun()
+    st.divider()
+    if st.button("👩‍🏫 教师端入口（无需注册）", key="gate_teacher", width="stretch"):
+        setv("gate_bypass", True)
+        setv("current_step", 77)
+        st.rerun()
+
+
+def render_teacher():
+    """教师端后台：学生管理 · 操作记录 · 评估 · 成绩导出（V1.10）。"""
+    s = st.session_state
+    st.markdown("### 👩‍🏫 教师端后台（学生管理 · 操作记录 · 评估 · 成绩导出）")
+    st.info("本地形态：数据写在应用目录 data/；已部署形态：云端实例共享 data/，"
+            "学生操作实时留痕，教师在线查看。")
+    if not s.get("teacher_authed"):
+        st.markdown("**教师口令**：请输入教师口令进入后台。")
+        pwd = st.text_input("教师口令", key="teacher_pwd", type="password")
+        if st.button("🔑 进入教师端", key="teacher_login", width="stretch", type="primary"):
+            if pwd == TEACHER_PASS:
+                setv("teacher_authed", True)
+                st.rerun()
+            else:
+                st.error("口令错误，请重试。")
+        return
+    # 汇总卡
+    df = export_scores_df()
+    classes = sorted(df["班级"].unique().tolist()) if len(df) else []
+    m1, m2, m3, m4 = st.columns(4)
+    m1.metric("学生数", len(df))
+    m2.metric("已完成实验(≥19步)", int((df["完成步数"] >= 19).sum()) if len(df) else 0)
+    m3.metric("平均成绩", f"{round(df['成绩(百分制)'].mean(), 1)} 分" if len(df) else "—")
+    m4.metric("班级数", len(classes) if not classes else len(classes))
+    # 班级筛选
+    klass = st.selectbox("按班级筛选", ["全部班级"] + classes) if classes else "全部班级"
+    df = export_scores_df(klass)
+    st.markdown("**学生成绩表**（实时聚合自操作日志：每步最新得分 → 总得分 → 百分制成绩）")
+    st.markdown(html_table(df), unsafe_allow_html=True)
+    e1, e2, e3 = st.columns(3)
+    with e1:
+        st.download_button("📥 导出本班成绩档案（CSV）", df.to_csv(index=False).encode("utf-8-sig"),
+                           file_name=f"tax_vlab_{klass}_scores.csv", mime="text/csv",
+                           key="teacher_export_scores")
+    with e2:
+        logs = _read_csv("logs.csv")
+        if klass != "全部班级":
+            logs = [r for r in logs if str(r.get("班级", "")).strip() == klass.strip()]
+        st.download_button("📥 导出操作日志（CSV）",
+                           pd.DataFrame(logs).to_csv(index=False).encode("utf-8-sig"),
+                           file_name=f"tax_vlab_{klass}_logs.csv", mime="text/csv",
+                           key="teacher_export_logs")
+    with e3:
+        if st.button("🚪 退出教师端", key="teacher_logout", width="stretch"):
+            setv("teacher_authed", False)
+            st.rerun()
+    # 学生详情与评估
+    st.divider()
+    st.markdown("**学生详情与教师评估**（选中学生 → 查看完整操作记录 → 填写评估评语）")
+    if len(df):
+        pick = st.selectbox("选择学生（学号 · 姓名）",
+                            [f"{r['学号']} · {r['姓名']}" for _, r in df.iterrows()])
+        sid = pick.split(" · ")[0]
+        row = df[df["学号"] == sid].iloc[0]
+        st.markdown(f"**{row['班级']} · {row['学号']} · {row['姓名']}** ｜ "
+                    f"总得分 {row['总得分']:g}/173 ｜ 成绩 {row['成绩(百分制)']} 分 ｜ "
+                    f"定性 {row['定性']} ｜ 稽查风险 {row['稽查风险']} ｜ 纳税信用 {row['纳税信用']}")
+        sub = [r for r in _read_csv("logs.csv")
+               if str(r.get("班级", "")).strip() == str(row["班级"]).strip()
+               and str(r.get("学号", "")).strip() == sid.strip()]
+        st.markdown(f"**操作记录（{len(sub)} 条）**")
+        if sub:
+            st.markdown(html_table(pd.DataFrame(sub), max_rows=40), unsafe_allow_html=True)
+        prev = ""
+        for r in _read_csv("assessments.csv"):
+            if str(r.get("班级", "")).strip() == str(row["班级"]).strip() and \
+               str(r.get("学号", "")).strip() == sid.strip():
+                prev = r.get("评语", "")
+        comment = st.text_area(f"教师评语（{row['学号']}）", value=prev, key="teacher_comment")
+        if st.button("💾 保存评估", key="teacher_save_assess"):
+            save_assessment(str(row["班级"]), sid, comment)
+            st.success("评估已保存至 data/assessments.csv")
+    else:
+        st.caption("暂无学生注册数据——学生完成实名注册后自动出现在这里。")
+
+
 def render_top_nav():
-    """顶部横向导航（参考版面）：实验导览 / 决策台 / 总结复盘，选中项高亮。"""
+    """顶部横向导航（V1.10 四 Tab）：实验导览 / 决策台 / 总结复盘 / 教师端，选中项高亮。"""
     cur = st.session_state.get("current_step", 1)
-    active = "🏠 实验导览" if cur == 1 else ("📝 总结复盘" if cur == 88 else "🧭 决策台")
+    active = ("🏠 实验导览" if cur == 1 else
+              "📝 总结复盘" if cur == 88 else
+              "👩‍🏫 教师端" if cur == 77 else "🧭 决策台")
     st.markdown(
         "<style>[data-testid='stHorizontalBlock'] > div:nth-child(1) .stButton,"
         "[data-testid='stHorizontalBlock'] > div:nth-child(1) button { width: 100% }</style>",
         unsafe_allow_html=True)
-    c1, c2, c3 = st.columns(3)
-    items = [("🏠 实验导览", 1), ("🧭 决策台", 2), ("📝 总结复盘", 88)]
-    for col, (label, target) in zip((c1, c2, c3), items):
+    c1, c2, c3, c4 = st.columns(4)
+    items = [("🏠 实验导览", 1), ("🧭 决策台", 2), ("📝 总结复盘", 88), ("👩‍🏫 教师端", 77)]
+    for col, (label, target) in zip((c1, c2, c3, c4), items):
         with col:
             if st.button(label + (" ✓" if label == active else ""),
                          key=f"topnav_{target}", width="stretch",
@@ -1295,7 +1698,7 @@ def render_top_nav():
                 else:
                     setv("current_step", target)
                 st.rerun()
-    st.caption("实验导览（首页与开局设置）→ 决策台（S1—S15 操作测评）→ 总结复盘（S16—S19 报告与反馈）")
+    st.caption("实验导览（首页与开局设置）→ 决策台（S1—S15 操作测评）→ 总结复盘（S16—S19 报告与反馈）→ 教师端（学生管理/成绩/评估/导出）")
 
 
 def render_sidebar():
@@ -1310,7 +1713,13 @@ def render_sidebar():
             st.divider()
             st.info("请先开始实验（首页认领案例并召开董事会）")
             return
-        # 3. 上下文行：案例 / 角色 / 步骤 / 战略 key-value
+        # 3. 学生信息（V1.10 实名门控）
+        st.divider()
+        stu = s.get("student", {})
+        st.caption("实名身份")
+        st.markdown(f"**{stu.get('班级', '—')} · {stu.get('姓名', '—')}**")
+        st.caption(f"学号 {stu.get('学号', '—')} ｜ 全程留痕")
+        # 4. 上下文行：案例 / 角色 / 步骤 / 战略 key-value
         st.divider()
         c1, c2 = st.columns(2)
         c1.caption("案例企业")
@@ -1396,14 +1805,14 @@ def render_sidebar():
 def render_home():
     # 1. 主视觉标题栏（参考版面：蓝色渐变大标题 + 元信息副标题）
     st.markdown(
-        f"<div style='background:linear-gradient(120deg,#0e5f56,#12a594);border-radius:12px;"
+        f"<div style='background:linear-gradient(120deg,#1e3a8a,#2563eb);border-radius:12px;"
         f"padding:26px 30px;color:#fff'>"
-        f"<div style='font-size:12px;letter-spacing:2px;color:#bfe9e0'>2026 中国仿真创新应用大赛 · 仿真教学创新设计方向</div>"
-        f"<h1 style='margin:8px 0 4px;font-size:26px;line-height:1.4'>金税四期下“业—票—税—信”多源异构数据<br>"
+        f"<div style='font-size:12px;letter-spacing:2px;color:#93c5fd'>2026 中国仿真创新应用大赛 · 仿真教学创新设计方向</div>"
+        f"<h1 style='margin:8px 0 4px;font-size:26px;line-height:1.4;color:#fff'>金税四期下“业—票—税—信”多源异构数据<br>"
         f"耦合推演与合规裁量虚拟仿真实验</h1>"
-        f"<div style='font-size:13px;color:#e2f6f1;margin-top:6px'>会计学 / 财务管理 / 税收学 ｜ "
+        f"<div style='font-size:13px;color:#bfdbfe;margin-top:6px'>会计学 / 财务管理 / 税收学 ｜ "
         f"税法 · 税务稽查 · 纳税筹划 · 税务会计 ｜ 综合设计型 + 探究型 + 对抗型</div>"
-        f"<div style='font-size:13px;color:#e2f6f1;margin-top:4px'>"
+        f"<div style='font-size:13px;color:#bfdbfe;margin-top:4px'>"
         f"19 步交互节点 ｜ 4 税联动（增值税/消费税/企税/个税） ｜ 满分 173 ｜ 8 学时（课前 1 + 课中 6 + 课后 1）</div></div>",
         unsafe_allow_html=True,
     )
@@ -1419,11 +1828,11 @@ def render_home():
     cols = st.columns(5)
     for col, (name, span, desc) in zip(cols, phase_cards):
         col.markdown(
-            f"<div style='background:#f0f8f5;border:1px solid #bfe8df;border-radius:10px;"
+            f"<div style='background:#16213a;border:1px solid #1e3a5f;border-radius:10px;"
             f"padding:12px 10px;min-height:120px'>"
-            f"<div style='font-weight:700;color:#0e5f56'>{name}</div>"
-            f"<div style='font-size:12px;color:#12a594;margin:4px 0'>{span}</div>"
-            f"<div style='font-size:12px;color:#5a6b85;line-height:1.6'>{desc}</div></div>",
+            f"<div style='font-weight:700;color:#38bdf8'>{name}</div>"
+            f"<div style='font-size:12px;color:#38bdf8;margin:4px 0'>{span}</div>"
+            f"<div style='font-size:12px;color:#94a3b8;line-height:1.6'>{desc}</div></div>",
             unsafe_allow_html=True,
         )
     # 3. 逻辑主线（参考版面：先打底子、再显性化后果的两行说明 + 四流耦合图）
@@ -1437,19 +1846,19 @@ def render_home():
     st.markdown("### ⚖️ 对抗与结算机制")
     mc1, mc2, mc3 = st.columns(3)
     mc1.markdown(
-        "<div style='background:#e6f7f2;border:1px solid #c9ece2;border-radius:10px;padding:12px 14px;min-height:104px'>"
-        "<div style='font-weight:700;color:#0e5f56'>双角色对抗</div>"
-        "<div style='font-size:12px;color:#5a6b85;margin-top:6px;line-height:1.6'>财务总监 vs 税务稽查，同一证据包两种视角；"
+        "<div style='background:#16213a;border:1px solid #1e3a5f;border-radius:10px;padding:12px 14px;min-height:104px'>"
+        "<div style='font-weight:700;color:#38bdf8'>双角色对抗</div>"
+        "<div style='font-size:12px;color:#94a3b8;margin-top:6px;line-height:1.6'>财务总监 vs 税务稽查，同一证据包两种视角；"
         "S13 切入稽查取证 → S14 财务抗辩 → S15 定性结算。</div></div>", unsafe_allow_html=True)
     mc2.markdown(
-        "<div style='background:#f0f7f0;border:1px solid #dcebd8;border-radius:10px;padding:12px 14px;min-height:104px'>"
-        "<div style='font-weight:700;color:#0e5f56'>定性三档</div>"
-        "<div style='font-size:12px;color:#5a6b85;margin-top:6px;line-height:1.6'>无问题 / 一般违规 / 偷税——规则引擎"
+        "<div style='background:#16213a;border:1px solid #1e3a5f;border-radius:10px;padding:12px 14px;min-height:104px'>"
+        "<div style='font-weight:700;color:#38bdf8'>定性三档</div>"
+        "<div style='font-size:12px;color:#94a3b8;margin-top:6px;line-height:1.6'>无问题 / 一般违规 / 偷税——规则引擎"
         "（关键词 + 负面词过滤 + 教师兜底）+ 参数扰动种子推演。</div></div>", unsafe_allow_html=True)
     mc3.markdown(
-        "<div style='background:#fdf6ee;border:1px solid #f0e2cd;border-radius:10px;padding:12px 14px;min-height:104px'>"
-        "<div style='font-weight:700;color:#0e5f56'>成绩构成</div>"
-        "<div style='font-size:12px;color:#5a6b85;margin-top:6px;line-height:1.6'>操作 60%（19 步 173 分）+ "
+        "<div style='background:#16213a;border:1px solid #1e3a5f;border-radius:10px;padding:12px 14px;min-height:104px'>"
+        "<div style='font-weight:700;color:#38bdf8'>成绩构成</div>"
+        "<div style='font-size:12px;color:#94a3b8;margin-top:6px;line-height:1.6'>操作 60%（19 步 173 分）+ "
         "报告理论 30% + 综合 10%；稽查风险与纳税信用双向联动。</div></div>", unsafe_allow_html=True)
     # 5. 实验介绍（参考版面：折叠项——教学目标 / 原理 / 过程与方法 / 必读）
     st.markdown("### 📖 实验介绍（教学目标 · 原理 · 过程与方法）")
@@ -1489,10 +1898,14 @@ def main():
     init_state()
     st.set_page_config(page_title="金税四期·业票税信虚仿实验", page_icon="🧾", layout="wide")
     st.markdown(UI_CSS, unsafe_allow_html=True)
+    # V1.10 学生实名门控：未注册（且未走教师端免注册入口）时只见注册页
+    if not st.session_state.get("student_registered") and not st.session_state.get("gate_bypass"):
+        render_register_gate()
+        return
     render_top_nav()
     render_sidebar()
     cur = st.session_state.get("current_step", 1)
-    if not st.session_state.get("started") and cur != 1:
+    if not st.session_state.get("started") and cur not in (1, 77):
         setv("current_step", 1)
         cur = 1
     if cur == 99:
@@ -1501,11 +1914,14 @@ def main():
     if cur == 88:
         render_review()
         return
+    if cur == 77:
+        render_teacher()
+        return
     if cur == 1:
         render_home()
         return
     # 独立步骤页（决策台 S2—S15，侧边栏导航进入）
-    st.markdown(f"<div style='font-size:12px;color:#8a97ab;margin-bottom:4px'>金税四期下“业—票—税—信”虚仿实验 · "
+    st.markdown(f"<div style='font-size:12px;color:#94a3b8;margin-bottom:4px'>金税四期下“业—票—税—信”虚仿实验 · "
                 f"步骤 {cur}/15 · 测评环节</div>", unsafe_allow_html=True)
     if cur >= 3 and not quiz_passed():
         st.warning("S2 税制理论快测尚未达标（≥3 分）——S3—S15 已锁定，请先返回 S2 完成快测并重测达标。")
@@ -1514,7 +1930,7 @@ def main():
                  13: render_s13, 14: render_s14, 15: render_s15}
     renderers.get(cur, render_home)()
     render_step_nav(cur)
-    st.markdown(f"<div style='margin-top:14px;color:#8a97ab;font-size:12px'>—— {APP_VERSION} ｜ "
+    st.markdown(f"<div style='margin-top:14px;color:#94a3b8;font-size:12px'>—— {APP_VERSION} ｜ "
                 f"金税四期下“业—票—税—信”多源异构数据耦合推演与合规裁量虚拟仿真实验 ——</div>",
                 unsafe_allow_html=True)
 

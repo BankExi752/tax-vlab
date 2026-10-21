@@ -37,8 +37,25 @@ def sb_text(at):
             pass
     return " ".join(parts)
 
+def register(at, klass="测试班", sid="T20261021", name="测试同学"):
+    """V1.10：通过学生实名门控（班级/学号/姓名）。"""
+    for t, val in [("reg_class", klass), ("reg_sid", sid), ("reg_name", name)]:
+        next(x for x in at.text_input if x.key == t).set_value(val)
+    next(b for b in at.button if b.key == "reg_enter").click()
+    at.run()
+
 at = AppTest.from_file(APP, default_timeout=120)
 at.run()
+
+# 0. 学生实名门控（V1.10）
+check("未注册时出现登录门控", "学生实名登录" in all_text(at) or "进入实验" in all_text(at))
+check("门控含班级/学号/姓名输入", all(any(t.key == k for t in at.text_input) for k in ("reg_class", "reg_sid", "reg_name")))
+# 空提交校验：班级/学号/姓名必填
+next(b for b in at.button if b.key == "reg_enter").click()
+at.run()
+check("空提交被拦截", "不能为空" in all_text(at))
+# 正常注册
+register(at)
 
 # 1. 首页标题
 check("首页含主标题", "金税四期下" in all_text(at))

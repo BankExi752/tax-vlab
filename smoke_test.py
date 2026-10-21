@@ -127,5 +127,31 @@ check("快测答案索引合法", all(0 <= q["ans"] < len(q["options"]) for q in
 # 14. S10 五人预扣税额合计口径（教学简化，不参与总分）
 check("S10 五人数据 5 条", len(m.S10_PERSONS) == 5)
 
+# 15. V1.10 数据层纯函数（操作留痕/成绩聚合）
+import tempfile, shutil, os as _os
+_tmp = tempfile.mkdtemp()
+m.DATA_DIR = _tmp
+try:
+    m._append_csv("students.csv", ["测试班", "T001", "张三", "2026-10-21 08:00:00"],
+                  ["班级", "学号", "姓名", "注册时间"])
+    m._append_csv("logs.csv", ["2026-10-21", "测试班", "T001", "张三", "提交 S2", "5/5 分", "2", "5/5", "0", "100", ""],
+                  ["时间", "班级", "学号", "姓名", "操作", "详情", "步骤", "得分", "稽查风险", "纳税信用", "定性"])
+    m._append_csv("logs.csv", ["2026-10-21", "测试班", "T001", "张三", "提交 S5", "12/12 分", "5", "12/12", "0", "100", "无问题"],
+                  ["时间", "班级", "学号", "姓名", "操作", "详情", "步骤", "得分", "稽查风险", "纳税信用", "定性"])
+    recs = m._read_csv("logs.csv")
+    check("日志落库 2 条", len(recs) == 2, str(len(recs)))
+    agg = m.aggregate_student("测试班", "T001")
+    check("聚合总得分 17", abs(agg["总得分"] - 17.0) < 1e-6, str(agg["总得分"]))
+    check("聚合完成步数 2", agg["完成步数"] == 2, str(agg["完成步数"]))
+    check("聚合定性继承", agg["定性"] == "无问题")
+    df = m.export_scores_df("测试班")
+    check("导出成绩表 1 行", len(df) == 1, str(len(df)))
+    check("导出成绩表列齐全", {"班级", "学号", "姓名", "成绩(百分制)"}.issubset(set(df.columns)))
+    m.save_assessment("测试班", "T001", "表现优秀")
+    ass = m._read_csv("assessments.csv")
+    check("评估落库", len(ass) == 1 and ass[0]["评语"] == "表现优秀")
+finally:
+    shutil.rmtree(_tmp, ignore_errors=True)
+
 print("\n==== 冒烟结果:", "ALL PASS" if not fails else f"FAILED: {fails}", "====")
 sys.exit(0 if not fails else 1)
