@@ -15,6 +15,7 @@ Streamlit 教学应用 V1.0（2026 中国仿真创新应用大赛 · 仿真教�
 """
 import hashlib
 import html as _html
+import math
 import os
 import re
 import threading
@@ -228,7 +229,7 @@ def _read_csv(name):
         return []
     with _io_lock:
         try:
-            df = pd.read_csv(path, dtype=str)
+            df = pd.read_csv(path, dtype=str, keep_default_na=False)
             return df.to_dict("records")
         except Exception:
             return []
@@ -289,25 +290,31 @@ def aggregate_student(klass, sid):
             n = int(str(r["步骤"]).strip())
             raw = str(r.get("得分", "")).strip()
             try:
-                steps[n] = float(raw.split("/")[0]) if raw else steps.get(n, 0.0)
+                if raw and str(raw).lower() != "nan":
+                    v = float(raw.split("/")[0])
+                    if math.isfinite(v):
+                        steps[n] = v
             except ValueError:
                 pass
         if r.get("时间"):
             last = r["时间"]
-        if r.get("稽查风险") not in ("", None):
+        if str(r.get("稽查风险", "")).strip() not in ("", "nan", "None"):
             risk = r["稽查风险"]
-        if r.get("纳税信用") not in ("", None):
+        if str(r.get("纳税信用", "")).strip() not in ("", "nan", "None"):
             credit = r["纳税信用"]
-        if r.get("定性") not in ("", None):
+        if str(r.get("定性", "")).strip() not in ("", "nan", "None"):
             outcome = r["定性"]
     total = 0.0
     for sc in steps.values():
         try:
-            total += float(sc)
+            v = float(sc)
+            if math.isfinite(v):
+                total += v
         except ValueError:
             pass
     full = 173
-    final = round(total / full * 100 * 0.6 + (total / full * 100) * 0.3 + 90 * 0.1) if total else 0
+    final = round(total / full * 100 * 0.6 + (total / full * 100) * 0.3 + 90 * 0.1) \
+        if total and math.isfinite(total) else 0
     return {"班级": klass, "学号": sid, "姓名": _reg_name(klass, sid),
             "注册时间": _reg_time(klass, sid), "完成步数": len(steps),
             "总得分": total, "成绩(百分制)": final, "定性": outcome or "未结算",
