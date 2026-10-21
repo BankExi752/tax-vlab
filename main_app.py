@@ -24,7 +24,7 @@ import time
 import pandas as pd
 import streamlit as st
 
-APP_VERSION = "V1.10.7"
+APP_VERSION = "V1.10.8"
 
 # ============================================================================
 # 一、常量与元数据（与计划书 V5.2 严格对齐）
@@ -1656,10 +1656,10 @@ def html_table(df, max_rows=60):
 def render_register_gate():
     """学生实名门控（V1.10）：班级/学号/姓名三项必填校验通过后才可进入实验。"""
     st.markdown(
-        f"<div style='background:linear-gradient(120deg,#312e81,#4f46e5,#0ea5e9);border-radius:12px;"
+        f"<div style='background:linear-gradient(120deg,#8b5cf6,#a78bfa,#c4b5fd);border-radius:12px;"
         f"padding:26px 30px;color:#fff'>"
-        f"<div style='font-size:12px;letter-spacing:2px;color:#a5b4fc'>2026 中国仿真创新应用大赛 · 仿真教学创新设计方向</div>"
-        f"<h1 style='margin:8px 0 4px;font-size:24px;line-height:1.4;color:#fff'>金税四期·业票税信虚仿实验 {APP_VERSION}</h1>"
+        f"<div style='font-size:12px;letter-spacing:2px;color:#4c1d95'>2026 中国仿真创新应用大赛 · 仿真教学创新设计方向</div>"
+        f"<h1 style='margin:8px 0 4px;font-size:24px;line-height:1.4;color:#4c1d95'>金税四期·业票税信虚仿实验 {APP_VERSION}</h1>"
         f"</div>", unsafe_allow_html=True)
     st.markdown("**学生实名登录**：班级 / 学号 / 姓名 三项必填并校验通过后才能进入实验。")
     st.info("本实验全程留痕：你的每步操作（提交 / 撤销 / 结算）都会写入操作日志，成绩由系统自动评定；"
@@ -1914,14 +1914,14 @@ def render_sidebar():
 def render_home():
     # 1. 主视觉标题栏（参考版面：蓝色渐变大标题 + 元信息副标题）
     st.markdown(
-        f"<div style='background:linear-gradient(120deg,#312e81,#4f46e5,#0ea5e9);border-radius:12px;"
+        f"<div style='background:linear-gradient(120deg,#8b5cf6,#a78bfa,#c4b5fd);border-radius:12px;"
         f"padding:26px 30px;color:#fff'>"
-        f"<div style='font-size:12px;letter-spacing:2px;color:#a5b4fc'>2026 中国仿真创新应用大赛 · 仿真教学创新设计方向</div>"
-        f"<h1 style='margin:8px 0 4px;font-size:26px;line-height:1.4;color:#fff'>金税四期下“业—票—税—信”多源异构数据<br>"
+        f"<div style='font-size:12px;letter-spacing:2px;color:#4c1d95'>2026 中国仿真创新应用大赛 · 仿真教学创新设计方向</div>"
+        f"<h1 style='margin:8px 0 4px;font-size:26px;line-height:1.4;color:#4c1d95'>金税四期下“业—票—税—信”多源异构数据<br>"
         f"耦合推演与合规裁量虚拟仿真实验</h1>"
-        f"<div style='font-size:13px;color:#c7d2fe;margin-top:6px'>会计学 / 财务管理 / 税收学 ｜ "
+        f"<div style='font-size:13px;color:#5b21b6;margin-top:6px'>会计学 / 财务管理 / 税收学 ｜ "
         f"税法 · 税务稽查 · 纳税筹划 · 税务会计 ｜ 综合设计型 + 探究型 + 对抗型</div>"
-        f"<div style='font-size:13px;color:#c7d2fe;margin-top:4px'>"
+        f"<div style='font-size:13px;color:#5b21b6;margin-top:4px'>"
         f"19 步交互节点 ｜ 4 税联动（增值税/消费税/企税/个税） ｜ 满分 173 ｜ 8 学时（课前 1 + 课中 6 + 课后 1）</div></div>",
         unsafe_allow_html=True,
     )
