@@ -24,7 +24,7 @@ import time
 import pandas as pd
 import streamlit as st
 
-APP_VERSION = "V1.10.6"
+APP_VERSION = "V1.10.7"
 
 # ============================================================================
 # 一、常量与元数据（与计划书 V5.2 严格对齐）
@@ -130,12 +130,12 @@ p, li, [data-testid="stMarkdownContainer"] p { color: #1f2937 !important; }
   border-color: #d1d5db !important;
 }
 [data-testid="stNumberInput"] input:focus, [data-testid="stTextInput"] input:focus {
-  border-color: #b45309 !important; box-shadow: 0 0 0 1px #b45309 !important;
+  border-color: #4f46e5 !important; box-shadow: 0 0 0 1px #4f46e5 !important;
 }
 /* radio 标签 */
 [data-testid="stRadio"] label, [data-testid="stCheckbox"] label { color: #1f2937 !important; }
 [data-testid="stRadio"] div[role="radiogroup"] label:hover, [data-testid="stCheckbox"] label:hover {
-  color: #b45309 !important; }
+  color: #4f46e5 !important; }
 /* ===== 按钮：浮起 + 阴影 + 按压回弹 ===== */
 div.stButton > button, [data-testid="stBaseButton-secondary"],
 [data-testid="stBaseButton-primary"] {
@@ -159,36 +159,36 @@ div.stButton > button:active, [data-testid="stBaseButton-secondary"]:active,
   border-radius: 8px !important;
   font-weight: 600 !important; letter-spacing: .5px !important;
 }
-[data-testid="stBaseButton-secondary"]:hover { border-color: #b45309 !important; color: #b45309 !important; }
+[data-testid="stBaseButton-secondary"]:hover { border-color: #4f46e5 !important; color: #4f46e5 !important; }
 [data-testid="stBaseButton-primary"] {
-  background: linear-gradient(120deg, #92400e, #b45309) !important;
+  background: linear-gradient(120deg, #4338ca, #4f46e5) !important;
   color: #fff !important;
   border-radius: 8px !important;
   font-weight: 700 !important; letter-spacing: .5px !important;
   box-shadow: 0 2px 10px rgba(37, 99, 235, .10) !important;
 }
 [data-testid="stBaseButton-primary"]:hover {
-  background: linear-gradient(120deg, #78350f, #d97706) !important;
+  background: linear-gradient(120deg, #312e81, #0ea5e9) !important;
 }
 /* ===== 复选框：卡片化悬停 ===== */
 [data-testid="stCheckbox"] { transition: background .15s ease, border-color .15s ease !important; }
 [data-testid="stCheckbox"]:hover {
   background: #ffffff !important;
-  border: 1px solid #b45309 !important;
+  border: 1px solid #4f46e5 !important;
   border-radius: 8px;
   box-shadow: 0 2px 8px rgba(37, 99, 235, .15);
 }
 [data-testid="stCheckbox"] label { cursor: pointer; }
 /* ===== 指标卡 ===== */
-[data-testid="stMetricValue"] { font-weight: 700 !important; color: #b45309 !important; }
+[data-testid="stMetricValue"] { font-weight: 700 !important; color: #4f46e5 !important; }
 [data-testid="stMetricLabel"] { color: #4b5563 !important; }
 [data-testid="stMetric"] { background: #ffffff !important; border: 1px solid #e5e7eb !important;
   border-radius: 8px; padding: .5rem .7rem; }
 /* ===== 进度条 / 信息框 ===== */
-[data-testid="stProgress"] > div > div > div > div { background: #b45309 !important; }
-[data-testid="stInfo"] { background: #fef3c7 !important; color: #92400e !important; border-color: #fcd34d !important; }
+[data-testid="stProgress"] > div > div > div > div { background: #4f46e5 !important; }
+[data-testid="stInfo"] { background: #eef2ff !important; color: #4338ca !important; border-color: #a5b4fc !important; }
 [data-testid="stSuccess"] { background: #ecfdf5 !important; color: #047857 !important; border-color: #34d399 !important; }
-[data-testid="stWarning"] { background: #fffbeb !important; color: #b45309 !important; border-color: #fbbf24 !important; }
+[data-testid="stWarning"] { background: #fffbeb !important; color: #4f46e5 !important; border-color: #fbbf24 !important; }
 [data-testid="stError"] { background: #fef2f2 !important; color: #b91c1c !important; border-color: #f87171 !important; }
 [data-testid="stExpander"] { background: #ffffff !important; border: 1px solid #e5e7eb !important;
   border-radius: 8px !important; }
@@ -611,7 +611,7 @@ def radar_svg(values, labels, title="税负雷达图", size=320):
         parts.append(f'<text x="{lx:.1f}" y="{ly:.1f}" text-anchor="middle">{_esc(labels[i])}</text>')
     pts = " ".join(f"{pt(i, max(0, min(100, values[i]))/100)[0]:.1f},{pt(i, max(0, min(100, values[i]))/100)[1]:.1f}"
                    for i in range(n))
-    parts.append(f'<polygon points="{pts}" fill="rgba(180,83,9,0.38)" stroke="#b45309" stroke-width="2"/>')
+    parts.append(f'<polygon points="{pts}" fill="rgba(79,70,229,0.38)" stroke="#4f46e5" stroke-width="2"/>')
     parts.append(f'<text x="{size/2}" y="{size-6}" text-anchor="middle" font-size="12" fill="#1f2937">{_esc(title)}</text>')
     parts.append("</svg>")
     return "".join(parts)
@@ -633,9 +633,9 @@ def gauge_svg(value, max_value, label, unit="%", size=240, warn_low=0, warn_high
                      f'stroke-width="14" stroke-dasharray="{(cx+r-(cx-r))*3.14159*(warn_high/max_value)*0.5} 10000"/>')
     ang = math.radians(angle)
     nx, ny = cx + r * 0.82 * math.cos(ang), cy + r * 0.82 * math.sin(ang)
-    parts.append(f'<line x1="{cx}" y1="{cy}" x2="{nx:.1f}" y2="{ny:.1f}" stroke="#b45309" stroke-width="3"/>')
-    parts.append(f'<circle cx="{cx}" cy="{cy}" r="5" fill="#b45309"/>')
-    parts.append(f'<text x="{cx}" y="{cy+30}" text-anchor="middle" font-size="22" font-weight="bold" fill="#b45309">{value}</text>')
+    parts.append(f'<line x1="{cx}" y1="{cy}" x2="{nx:.1f}" y2="{ny:.1f}" stroke="#4f46e5" stroke-width="3"/>')
+    parts.append(f'<circle cx="{cx}" cy="{cy}" r="5" fill="#4f46e5"/>')
+    parts.append(f'<text x="{cx}" y="{cy+30}" text-anchor="middle" font-size="22" font-weight="bold" fill="#4f46e5">{value}</text>')
     parts.append(f'<text x="{cx}" y="{cy+48}" text-anchor="middle" font-size="12" fill="#4b5563">{_esc(label)}（{unit}）</text>')
     parts.append("</svg>")
     return "".join(parts)
@@ -662,18 +662,18 @@ def flows_svg(size=760):
     """业—票—税—信 四流耦合示意图。"""
     w, h = size, 190
     nodes = [
-        ("业务流", "采购 / 销售 / 捐赠 / 薪酬", 40, 60, "#b45309"),
-        ("票据流", "数电票 / 异常凭证 / P 指标", 220, 60, "#d97706"),
-        ("税款流", "增值税 / 消费税 / 企税 / 个税", 400, 60, "#b45309"),
+        ("业务流", "采购 / 销售 / 捐赠 / 薪酬", 40, 60, "#4f46e5"),
+        ("票据流", "数电票 / 异常凭证 / P 指标", 220, 60, "#0ea5e9"),
+        ("税款流", "增值税 / 消费税 / 企税 / 个税", 400, 60, "#10b981"),
         ("信用流", "纳税信用 / 风险条 / 定性裁量", 580, 60, "#4f46e5"),
     ]
     parts = [f'<svg width="100%" height="auto" viewBox="0 0 {w} {h}" preserveAspectRatio="xMidYMid meet" '
              f'xmlns="http://www.w3.org/2000/svg" style="font-family:sans-serif;display:block;max-width:100%">']
     for i in range(len(nodes) - 1):
         x1 = nodes[i][2] + 150
-        parts.append(f'<line x1="{x1}" y1="90" x2="{nodes[i+1][2]}" y2="90" stroke="#d97706" stroke-width="2" '
+        parts.append(f'<line x1="{x1}" y1="90" x2="{nodes[i+1][2]}" y2="90" stroke="#0ea5e9" stroke-width="2" '
                      f'stroke-dasharray="6 4"/>')
-        parts.append(f'<text x="{(x1+nodes[i+1][2])/2}" y="82" text-anchor="middle" font-size="10" fill="#92400e">耦合推演</text>')
+        parts.append(f'<text x="{(x1+nodes[i+1][2])/2}" y="82" text-anchor="middle" font-size="10" fill="#4338ca">耦合推演</text>')
     for name, sub, x, y, color in nodes:
         parts.append(f'<rect x="{x}" y="{y}" width="150" height="60" rx="8" fill="{color}" opacity="0.92"/>')
         parts.append(f'<text x="{x+75}" y="{y+26}" text-anchor="middle" fill="#fff" font-size="14" font-weight="bold">{_esc(name)}</text>')
@@ -770,9 +770,9 @@ def step_header(n):
         return
     _, name, mins, full, stype = meta
     st.markdown(
-        f'<div style="background:#ffffff;border:1px solid #e5e7eb;border-left:4px solid #b45309;'
+        f'<div style="background:#ffffff;border:1px solid #e5e7eb;border-left:4px solid #4f46e5;'
         f'border-radius:6px;padding:10px 14px;margin-bottom:8px">'
-        f'<span style="font-size:17px;font-weight:700;color:#b45309">S{n} · {_esc(name)}</span>'
+        f'<span style="font-size:17px;font-weight:700;color:#4f46e5">S{n} · {_esc(name)}</span>'
         f'<div style="font-size:12px;color:#4b5563;margin-top:4px">'
         f'合理用时：{mins} 分钟 ｜ 满分：{full} 分 ｜ 成绩类型：{stype}</div></div>',
         unsafe_allow_html=True,
@@ -831,7 +831,7 @@ def render_result_card():
     if not d:
         return
     kind, title, msg = d["kind"], d["title"], d["msg"]
-    color = {"success": "#22c55e", "error": "#ef4444", "warning": "#f59e0b"}.get(kind, "#92400e")
+    color = {"success": "#22c55e", "error": "#ef4444", "warning": "#f59e0b"}.get(kind, "#4338ca")
     icon = {"success": "✅", "error": "❌", "warning": "⚠️"}.get(kind, "ℹ️")
     s = st.session_state
     risk = s.get("risk_points", 0)
@@ -853,7 +853,7 @@ def render_result_card():
         f"<div style='font-size:13px;color:#1f2937;margin-top:6px'>{msg}</div>"
         f"<div style='font-size:12px;color:#4b5563;margin-top:8px'>"
         f"📊 当前状态：稽查风险 {risk} 分 ｜ 纳税信用 {credit} 分 ｜ 已完成 {done}/19 步 ｜ 累计得分 {total}</div>"
-        f"<div style='font-size:12px;color:#b45309;margin-top:4px'>👉 下一步建议：{advice}</div>"
+        f"<div style='font-size:12px;color:#4f46e5;margin-top:4px'>👉 下一步建议：{advice}</div>"
         f"</div>", unsafe_allow_html=True)
 
 
@@ -1553,7 +1553,7 @@ def build_report_html(final=False):
     html = f"""
     <div style="font-family:'Microsoft YaHei',sans-serif;border:1px solid #e5e7eb;border-radius:10px;
                 padding:18px 22px;background:#ffffff">
-      <h3 style="margin:0 0 6px;color:#b45309">实验报告{'(最终版)' if final else '(草稿)'}</h3>
+      <h3 style="margin:0 0 6px;color:#4f46e5">实验报告{'(最终版)' if final else '(草稿)'}</h3>
       <div style="color:#4b5563;font-size:13px;margin-bottom:10px">
         案例企业：{_esc(s.get('case','—'))} ｜ 定性结果：{_esc(s.get('outcome','未结算'))}
          ｜ 完成步骤 {done}/19 ｜ 步骤得分 {step_sc:g}/173 ｜ 稽查风险值 {s['risk_points']}/100
@@ -1568,7 +1568,7 @@ def build_report_html(final=False):
         <td style="border:1px solid #e5e7eb;padding:5px;font-weight:700">173</td></tr>
       </table>
       <div style="margin-top:10px">{radar}</div>
-      <div style="font-size:13px;color:#b45309;margin-top:8px">实验成绩（百分制）=
+      <div style="font-size:13px;color:#4f46e5;margin-top:8px">实验成绩（百分制）=
         操作 {step_sc}/173×100×60% + 报告与理论 {report_sc}×30% + 综合 90×10% =
         {calc_final_score(step_sc, report_sc, 90)} 分</div>
     </div>"""
@@ -1609,7 +1609,7 @@ def render_summary():
     comp = 90          # 综合考核（演示环境默认 90，无独立交互步骤）
     final = calc_final_score(step_sc, report_sc, comp)
     setv("final_score", final)
-    st.markdown(f"<h2 style='color:#b45309'>实验结算</h2>", unsafe_allow_html=True)
+    st.markdown(f"<h2 style='color:#4f46e5'>实验结算</h2>", unsafe_allow_html=True)
     c1, c2, c3, c4 = st.columns(4)
     c1.metric("步骤得分", f"{step_sc:g} / 173")
     c2.metric("实验成绩（百分制）", f"{final} 分")
@@ -1636,7 +1636,7 @@ def html_table(df, max_rows=60):
         return "<div style='color:#4b5563;font-size:13px;padding:8px'>暂无数据</div>"
     cols = list(df.columns)
     head = "".join(f"<th style='border:1px solid #e5e7eb;padding:6px 10px;background:#f5f7fa;"
-                   f"color:#b45309;font-size:12px;text-align:left'>{_esc(c)}</th>" for c in cols)
+                   f"color:#4f46e5;font-size:12px;text-align:left'>{_esc(c)}</th>" for c in cols)
     body = ""
     for i, (_, r) in enumerate(df.head(max_rows).iterrows()):
         bg = "#ffffff" if i % 2 == 0 else "#f8fafc"
@@ -1656,9 +1656,9 @@ def html_table(df, max_rows=60):
 def render_register_gate():
     """学生实名门控（V1.10）：班级/学号/姓名三项必填校验通过后才可进入实验。"""
     st.markdown(
-        f"<div style='background:linear-gradient(120deg,#78350f,#b45309);border-radius:12px;"
+        f"<div style='background:linear-gradient(120deg,#312e81,#4f46e5,#0ea5e9);border-radius:12px;"
         f"padding:26px 30px;color:#fff'>"
-        f"<div style='font-size:12px;letter-spacing:2px;color:#fcd34d'>2026 中国仿真创新应用大赛 · 仿真教学创新设计方向</div>"
+        f"<div style='font-size:12px;letter-spacing:2px;color:#a5b4fc'>2026 中国仿真创新应用大赛 · 仿真教学创新设计方向</div>"
         f"<h1 style='margin:8px 0 4px;font-size:24px;line-height:1.4;color:#fff'>金税四期·业票税信虚仿实验 {APP_VERSION}</h1>"
         f"</div>", unsafe_allow_html=True)
     st.markdown("**学生实名登录**：班级 / 学号 / 姓名 三项必填并校验通过后才能进入实验。")
@@ -1914,33 +1914,33 @@ def render_sidebar():
 def render_home():
     # 1. 主视觉标题栏（参考版面：蓝色渐变大标题 + 元信息副标题）
     st.markdown(
-        f"<div style='background:linear-gradient(120deg,#78350f,#b45309);border-radius:12px;"
+        f"<div style='background:linear-gradient(120deg,#312e81,#4f46e5,#0ea5e9);border-radius:12px;"
         f"padding:26px 30px;color:#fff'>"
-        f"<div style='font-size:12px;letter-spacing:2px;color:#fcd34d'>2026 中国仿真创新应用大赛 · 仿真教学创新设计方向</div>"
+        f"<div style='font-size:12px;letter-spacing:2px;color:#a5b4fc'>2026 中国仿真创新应用大赛 · 仿真教学创新设计方向</div>"
         f"<h1 style='margin:8px 0 4px;font-size:26px;line-height:1.4;color:#fff'>金税四期下“业—票—税—信”多源异构数据<br>"
         f"耦合推演与合规裁量虚拟仿真实验</h1>"
-        f"<div style='font-size:13px;color:#fde68a;margin-top:6px'>会计学 / 财务管理 / 税收学 ｜ "
+        f"<div style='font-size:13px;color:#c7d2fe;margin-top:6px'>会计学 / 财务管理 / 税收学 ｜ "
         f"税法 · 税务稽查 · 纳税筹划 · 税务会计 ｜ 综合设计型 + 探究型 + 对抗型</div>"
-        f"<div style='font-size:13px;color:#fde68a;margin-top:4px'>"
+        f"<div style='font-size:13px;color:#c7d2fe;margin-top:4px'>"
         f"19 步交互节点 ｜ 4 税联动（增值税/消费税/企税/个税） ｜ 满分 173 ｜ 8 学时（课前 1 + 课中 6 + 课后 1）</div></div>",
         unsafe_allow_html=True,
     )
     # 2. 实验地图：五篇章卡片（参考版面「实验地图」：篇章名 / 步骤区间 / 一句话说明）
     st.markdown("### 🗺️ 实验地图：19 步决策全流程（从上到下依次完成）")
     phase_cards = [
-        ("引导认知", "S1—S2", "认领案例定 KPI，快测达标解锁全流程"),
-        ("基础操作", "S3—S10", "查验发票、校验四流、申报四税"),
-        ("风险研判", "S11—S12", "筹划方案与合规判定，负面词直接预警"),
-        ("双角色对抗", "S13—S15", "稽查取证 ↔ 财务抗辩 → 定性裁量"),
-        ("总结复盘", "S16—S19", "报告草稿 → AI 提分 → 最终报告 → 反馈闭环"),
+        ("引导认知", "S1—S2", "认领案例定 KPI，快测达标解锁全流程", "#4f46e5"),
+        ("基础操作", "S3—S10", "查验发票、校验四流、申报四税", "#0ea5e9"),
+        ("风险研判", "S11—S12", "筹划方案与合规判定，负面词直接预警", "#10b981"),
+        ("双角色对抗", "S13—S15", "稽查取证 ↔ 财务抗辩 → 定性裁量", "#7c3aed"),
+        ("总结复盘", "S16—S19", "报告草稿 → AI 提分 → 最终报告 → 反馈闭环", "#f59e0b"),
     ]
     cols = st.columns(5)
-    for col, (name, span, desc) in zip(cols, phase_cards):
+    for col, (name, span, desc, color) in zip(cols, phase_cards):
         col.markdown(
             f"<div style='background:#ffffff;border:1px solid #e5e7eb;border-radius:10px;"
-            f"padding:12px 10px;min-height:120px'>"
-            f"<div style='font-weight:700;color:#b45309'>{name}</div>"
-            f"<div style='font-size:12px;color:#b45309;margin:4px 0'>{span}</div>"
+            f"border-top:4px solid {color};padding:12px 10px;min-height:120px'>"
+            f"<div style='font-weight:700;color:{color}'>{name}</div>"
+            f"<div style='font-size:12px;color:{color};margin:4px 0'>{span}</div>"
             f"<div style='font-size:12px;color:#4b5563;line-height:1.6'>{desc}</div></div>",
             unsafe_allow_html=True,
         )
@@ -1955,18 +1955,21 @@ def render_home():
     st.markdown("### ⚖️ 对抗与结算机制")
     mc1, mc2, mc3 = st.columns(3)
     mc1.markdown(
-        "<div style='background:#ffffff;border:1px solid #e5e7eb;border-radius:10px;padding:12px 14px;min-height:104px'>"
-        "<div style='font-weight:700;color:#b45309'>双角色对抗</div>"
+        "<div style='background:#ffffff;border:1px solid #e5e7eb;border-radius:10px;"
+        "border-top:4px solid #7c3aed;padding:12px 14px;min-height:104px'>"
+        "<div style='font-weight:700;color:#7c3aed'>双角色对抗</div>"
         "<div style='font-size:12px;color:#4b5563;margin-top:6px;line-height:1.6'>财务总监 vs 税务稽查，同一证据包两种视角；"
         "S13 切入稽查取证 → S14 财务抗辩 → S15 定性结算。</div></div>", unsafe_allow_html=True)
     mc2.markdown(
-        "<div style='background:#ffffff;border:1px solid #e5e7eb;border-radius:10px;padding:12px 14px;min-height:104px'>"
-        "<div style='font-weight:700;color:#b45309'>定性三档</div>"
+        "<div style='background:#ffffff;border:1px solid #e5e7eb;border-radius:10px;"
+        "border-top:4px solid #10b981;padding:12px 14px;min-height:104px'>"
+        "<div style='font-weight:700;color:#10b981'>定性三档</div>"
         "<div style='font-size:12px;color:#4b5563;margin-top:6px;line-height:1.6'>无问题 / 一般违规 / 偷税——规则引擎"
         "（关键词 + 负面词过滤 + 教师兜底）+ 参数扰动种子推演。</div></div>", unsafe_allow_html=True)
     mc3.markdown(
-        "<div style='background:#ffffff;border:1px solid #e5e7eb;border-radius:10px;padding:12px 14px;min-height:104px'>"
-        "<div style='font-weight:700;color:#b45309'>成绩构成</div>"
+        "<div style='background:#ffffff;border:1px solid #e5e7eb;border-radius:10px;"
+        "border-top:4px solid #f59e0b;padding:12px 14px;min-height:104px'>"
+        "<div style='font-weight:700;color:#f59e0b'>成绩构成</div>"
         "<div style='font-size:12px;color:#4b5563;margin-top:6px;line-height:1.6'>操作 60%（19 步 173 分）+ "
         "报告理论 30% + 综合 10%；稽查风险与纳税信用双向联动。</div></div>", unsafe_allow_html=True)
     # 5. 实验介绍（参考版面：折叠项——教学目标 / 原理 / 过程与方法 / 必读）
