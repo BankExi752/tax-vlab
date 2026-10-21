@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
-"""V1.10.3 专项：注册成功弹窗出现 + 关闭按钮可点"""
+"""V1.10.3 专项：注册/提交后出现结果卡片（含对错、状态、建议），且无弹窗 dlg_ok"""
 from streamlit.testing.v1 import AppTest
-import io
 
 APP = r"C:\Users\孔鑫璇\Doubao\chats\2026-10-20\new-chat-4\app-src\main_app.py"
 fails = []
@@ -23,28 +22,22 @@ reg = [b for b in at.button if b.key == "reg_enter"]
 check("找到注册按钮", len(reg) == 1)
 reg[0].click()
 at.run()
-# 弹窗应出现：dlg_ok 按钮 + 标题"注册成功"
-ok = [b for b in at.button if b.key == "dlg_ok"]
-check("注册后弹出对话框(dlg_ok 出现)", len(ok) == 1, f"buttons={[b.key for b in at.button][:12]}")
+# 结果卡片应出现在 markdown（含注册成功标题 + 状态 + 建议）
 allt = " ".join(str(getattr(e, "value", "")) for e in at.markdown if getattr(e, "value", ""))
-check("弹窗含注册成功标题", "注册成功" in allt, allt[:120])
-# 点"知道了"关闭
-ok[0].click()
-at.run()
-ok2 = [b for b in at.button if b.key == "dlg_ok"]
-check("关闭后 dlg_ok 消失", len(ok2) == 0)
+check("无弹窗 dlg_ok 按钮", not any(b.key == "dlg_ok" for b in at.button))
+check("卡片含注册成功", "注册成功" in allt)
+check("卡片含当前状态行", "当前状态" in allt and "稽查风险" in allt)
+check("卡片含下一步建议", "下一步建议" in allt)
 
-# 未全答提交 S2 → 弹窗（warning）
+# 未全答提交 S2 → 结果卡片（warning）
 nav2 = [b for b in at.sidebar.button if b.key == "nav_2"]
 if nav2:
     nav2[0].click(); at.run()
     sub = [b for b in at.button if b.key == "s2_submit"]
     if sub:
         sub[0].click(); at.run()
-        ok3 = [b for b in at.button if b.key == "dlg_ok"]
-        check("S2 未全答拦截弹窗出现", len(ok3) == 1, f"buttons={[b.key for b in at.button][:14]}")
         t3 = " ".join(str(getattr(e, "value", "")) for e in at.markdown if getattr(e, "value", ""))
-        check("弹窗含未作答提示", "未作答" in t3, t3[:150])
+        check("S2 未全答卡片出现", "未作答" in t3 and "下一步建议" in t3, t3[:120])
 
-print("\n==== 弹窗专项结果:", "ALL PASS" if not fails else f"FAILED: {fails}", "====")
+print("\n==== 结果卡片专项结果:", "ALL PASS" if not fails else f"FAILED: {fails}", "====")
 import sys; sys.exit(0 if not fails else 1)

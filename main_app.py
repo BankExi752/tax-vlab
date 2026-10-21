@@ -817,25 +817,44 @@ def record(n, score, risk_add=0):
                risk=s["risk_points"], credit=s["credit_score"], outcome=s.get("outcome", ""))
 
 
-def modal(kind, title, msg):
-    """V1.10.3：操作结果弹窗。kind ∈ success / error / warning。"""
-    st.session_state["_modal"] = {"kind": kind, "title": title, "msg": msg}
+def modal(kind, title, msg, advice=None):
+    """V1.10.3：操作结果卡片。kind ∈ success / error / warning；advice 为可选下一步建议。"""
+    st.session_state["_modal"] = {"kind": kind, "title": title, "msg": msg, "advice": advice}
 
 
-@st.dialog("系统提示")
-def render_modal():
-    """渲染当前待展示的操作结果弹窗（在每次 run 开头调用）。"""
+def render_result_card():
+    """V1.10.3：每步操作提交后，在页面顶部展示结果卡片（对错 + 当前状态 + 下一步建议）。
+
+    非弹窗：常驻显示最近一次操作结果，下次操作自动更新。
+    """
     d = st.session_state.get("_modal")
     if not d:
         return
-    icon = {"success": "✅", "error": "❌", "warning": "⚠️"}.get(d["kind"], "ℹ️")
-    color = {"success": "#22c55e", "error": "#ef4444", "warning": "#f59e0b"}.get(d["kind"], "#60a5fa")
-    st.markdown(f"<div style='font-size:20px;font-weight:800;color:{color};margin-bottom:6px'>{icon} {d['title']}</div>",
-                unsafe_allow_html=True)
-    st.markdown(d["msg"])
-    if st.button("知道了", key="dlg_ok", type="primary", width="stretch"):
-        st.session_state.pop("_modal", None)
-        st.rerun()
+    kind, title, msg = d["kind"], d["title"], d["msg"]
+    color = {"success": "#22c55e", "error": "#ef4444", "warning": "#f59e0b"}.get(kind, "#60a5fa")
+    icon = {"success": "✅", "error": "❌", "warning": "⚠️"}.get(kind, "ℹ️")
+    s = st.session_state
+    risk = s.get("risk_points", 0)
+    credit = s.get("credit_score", 0)
+    done = sum(1 for k in s.keys()
+               if str(k).startswith("s") and str(k).endswith("_done") and s.get(k))
+    scores = s.get("scores", {}) or {}
+    total = round(sum(v for v in scores.values()), 1)
+    if kind == "success":
+        advice = d.get("advice") or "操作已完成，可继续下一步（页面底部或侧边栏导航）。"
+    elif kind == "error":
+        advice = d.get("advice") or "本次判定未通过，请按提示修正后重新提交。"
+    else:
+        advice = d.get("advice") or "部分条件未满足，请按提示补充后重新提交。"
+    st.markdown(
+        f"<div style='border-left:5px solid {color};background:{color}1a;border-radius:10px;"
+        f"padding:14px 18px;margin:10px 0;box-shadow:0 2px 10px rgba(0,0,0,.25)'>"
+        f"<div style='font-size:15px;font-weight:800;color:{color}'>{icon} {title}</div>"
+        f"<div style='font-size:13px;color:#e2e8f0;margin-top:6px'>{msg}</div>"
+        f"<div style='font-size:12px;color:#94a3b8;margin-top:8px'>"
+        f"📊 当前状态：稽查风险 {risk} 分 ｜ 纳税信用 {credit} 分 ｜ 已完成 {done}/19 步 ｜ 累计得分 {total}</div>"
+        f"<div style='font-size:12px;color:#60a5fa;margin-top:4px'>👉 下一步建议：{advice}</div>"
+        f"</div>", unsafe_allow_html=True)
 
 
 def undo_last():
@@ -1988,8 +2007,8 @@ def main():
     init_state()
     st.set_page_config(page_title="金税四期·业票税信虚仿实验", page_icon="🧾", layout="wide")
     st.markdown(UI_CSS, unsafe_allow_html=True)
-    # V1.10.3 操作结果弹窗（成功/失败统一以对话框说明当前情况）
-    render_modal()
+    # V1.10.3 操作结果卡片（提交后展示对错、当前状态与下一步建议，非弹窗）
+    render_result_card()
     # V1.10 学生实名门控：未注册（且未走教师端免注册入口）时只见注册页
     if not st.session_state.get("student_registered") and not st.session_state.get("gate_bypass"):
         render_register_gate()
